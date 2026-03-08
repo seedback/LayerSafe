@@ -244,6 +244,7 @@ def generate_base_tray(
   flap.part = chamfer(flap_chamfer_edges, 0.4 - epsilon)
 
   # Decide whether it's one or two
+  flap_compound = flap.part
 
   if is_double_tray:
     center.part += mirror(center.part, Plane.XZ)
