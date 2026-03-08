@@ -33,7 +33,9 @@ hinge_lock_depth = 8.3
 
 is_double_tray = False
 
-cutout_edge_spacing = 0.8
+cutout_edge_spacing = 0.4
+
+epsilon = 0.0001
 
 
 
@@ -43,26 +45,24 @@ cutout_edge_spacing = 0.8
 if __name__ == "__main__":
   base_radius = 31.6
   width = base_radius + rail_width*2 + 8
-  base_center_part, base_flap_part = generate_base_tray(width, is_double_tray=True)
-  cutout = generate_cutout(base_radius).translate((-width/2 + rail_width + 4, -total_depth/2 + cutout_edge_spacing, floor_thickness))
+  tray_compound = generate_base_tray(width, is_double_tray=True, epsilon=epsilon)
+  cutout = generate_cutout(base_radius, cutout_edge_spacing=cutout_edge_spacing, epsilon=epsilon).translate((-width/2 + rail_width + 4, -total_depth/2 + cutout_edge_spacing, floor_thickness))
 
-  base_center_part.part -= cutout
-  base_flap_part.part -= cutout
+  tray_compound -= cutout
+  # base_flap_part.part -= cutout
   
   cutout = mirror(cutout, Plane.XZ)
   
-  base_center_part.part -= cutout
-  base_flap_part.part -= cutout
+  tray_compound -= cutout
+  # base_flap_part.part -= cutout
 
-  show(base_center_part, base_flap_part, cutout)
+  show(tray_compound, cutout)
 
 #%%
 if __name__ == "__main__":
-  export_compound = Compound([base_center_part.part, base_flap_part.part])
+  # show(export_compound, base_center_part, base_flap_part)
 
-  show(export_compound, base_center_part, base_flap_part)
-
-  export_stl(export_compound, "output/tray.stl")
-  export_step(export_compound, "output/tray.step")
+  export_stl(tray_compound, "output/tray.stl")
+  export_step(tray_compound, "output/tray.step")
 
 # %%

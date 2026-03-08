@@ -20,6 +20,7 @@ def generate_base_tray(
     hinge_lock_offset=0.4,
     hinge_lock_depth=8.3,
     is_double_tray=False,
+    epsilon = 0.0000001,
 ):
   """Generate tray geometry with all components."""
   # Calculated Parameters
@@ -39,7 +40,7 @@ def generate_base_tray(
 
   hinge_depth += hinge_negative_space
 
-  epsilon = 0.0000001
+  
 
   # Middle
 
@@ -246,9 +247,9 @@ def generate_base_tray(
 
   if is_double_tray:
     center.part += mirror(center.part, Plane.XZ)
-    flap.part += mirror(flap.part, Plane.XZ)
+    flap_compound = Compound([flap.part, mirror(flap.part, Plane.XZ)])
 
-  return center, flap
+  return Compound([center.part, flap_compound])
 
 if __name__ == "__main__":
   center, flap = generate_base_tray()

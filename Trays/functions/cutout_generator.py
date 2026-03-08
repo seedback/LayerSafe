@@ -11,7 +11,9 @@ def generate_cutout(
   flap_depth = 11.8,
   hinge_diameter = 27.7,
   flap_center_gap=0.2,
-  cutout_edge_spacing = .8):
+  cutout_edge_spacing = .8,
+  epsilon = 0.0001
+):
   with BuildPart() as normal_base:
     with BuildSketch():
       Circle(base_diameter/2 + tolerance/2, align=(Align.MIN, Align.MIN))
@@ -33,7 +35,7 @@ def generate_cutout(
     revolve_axis = Axis(origin=(base_diameter/2 + tolerance/2, base_diameter/2, -1.8), direction=(0, 0, 1))
     revolve(axis=revolve_axis, mode=Mode.SUBTRACT)
     # Keep only the part of the lip adjustor that intersects with the flap
-    Box((base_diameter/2 + tolerance/2) * 2, flap_depth*2 - cutout_edge_spacing*2, 7, align=(Align.MIN, Align.CENTER, Align.MIN), mode=Mode.INTERSECT)
+    Box((base_diameter/2 + tolerance/2) * 2, flap_depth*2 - cutout_edge_spacing*2 + epsilon, 7, align=(Align.MIN, Align.CENTER, Align.MIN), mode=Mode.INTERSECT)
   
   return_compound = Compound([normal_base.part, lip_adjustor.part]).translate((-tolerance/2,0,0))
   
