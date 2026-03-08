@@ -9,7 +9,8 @@ from functions.cutout_generator import generate_cutout
 # %% User-Adjustable Parameters
 
 total_width = 189.5 # Default: 189.5
-total_depth = 68.0  # Default: 66.0
+total_depth = 66.0  # Default: 66.0
+safety_margin = (12, 0.4)
 
 floor_thickness = 0.4
 base_heigth = 4.2
@@ -33,8 +34,6 @@ hinge_lock_depth = 8.3
 
 is_double_tray = False
 
-cutout_edge_spacing = 0.4
-
 base_tolerance = 0.5
 epsilon = 0.0001
 
@@ -45,7 +44,7 @@ epsilon = 0.0001
 
 if __name__ == "__main__":
   base_radius = 31.6
-  width = base_radius + rail_width*2 + 8
+  width = base_radius + rail_width*2 + safety_margin[0]
   tray_compound = generate_base_tray(
     width,
     total_depth,
@@ -56,12 +55,11 @@ if __name__ == "__main__":
     generate_cutout(
       base_radius,
       tolerance=base_tolerance,
-      cutout_edge_spacing=cutout_edge_spacing,
+      cutout_edge_spacing=safety_margin[1],
       epsilon=epsilon
     ).translate((
-      -width/2 + rail_width + 4,
-      -total_depth/2 + cutout_edge_spacing,
-      0,
+      -width/2 + rail_width + safety_margin[0]/2,
+      -total_depth/2 + safety_margin[1],
       floor_thickness,
     ))
   )
