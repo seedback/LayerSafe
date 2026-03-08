@@ -3,8 +3,8 @@ from build123d import *
 from ocp_vscode import *
 import math
 import copy
-import base_tray_generator
-from cutout_generator import generate_cutout
+from functions.base_tray_generator import generate_base_tray
+from functions.cutout_generator import generate_cutout
 
 # %% User-Adjustable Parameters
 
@@ -43,7 +43,7 @@ cutout_edge_spacing = 0.8
 if __name__ == "__main__":
   base_radius = 31.6
   width = base_radius + rail_width*2 + 8
-  base_center_part, base_flap_part = base_tray_generator.generate_base_tray(width, is_double_tray=True)
+  base_center_part, base_flap_part = generate_base_tray(width, is_double_tray=True)
   cutout = generate_cutout(base_radius).translate((-width/2 + rail_width + 4, -total_depth/2 + cutout_edge_spacing, floor_thickness))
 
   base_center_part.part -= cutout
@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
   show(export_compound, base_center_part, base_flap_part)
 
-  export_stl(export_compound, "tray.stl")
-  export_step(export_compound, "tray.step")
+  export_stl(export_compound, "output/tray.stl")
+  export_step(export_compound, "output/tray.step")
 
 # %%
