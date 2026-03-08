@@ -35,6 +35,7 @@ is_double_tray = False
 
 cutout_edge_spacing = 0.4
 
+base_tolerance = 0.5
 epsilon = 0.0001
 
 
@@ -46,7 +47,7 @@ if __name__ == "__main__":
   base_radius = 31.6
   width = base_radius + rail_width*2 + 8
   tray_compound = generate_base_tray(width, is_double_tray=True, epsilon=epsilon)
-  cutout = generate_cutout(base_radius, cutout_edge_spacing=cutout_edge_spacing, epsilon=epsilon).translate((-width/2 + rail_width + 4, -total_depth/2 + cutout_edge_spacing, floor_thickness))
+  cutout = generate_cutout(base_radius, tolerance=base_tolerance, cutout_edge_spacing=cutout_edge_spacing, epsilon=epsilon).translate((-width/2 + rail_width + 4, -total_depth/2 + cutout_edge_spacing, floor_thickness))
 
   tray_compound -= cutout
   # base_flap_part.part -= cutout
