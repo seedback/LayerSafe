@@ -20,7 +20,7 @@ def generate_base_tray(
     hinge_lock_offset=0.4,
     hinge_lock_depth=8.3,
     is_double_tray=False,
-    epsilon = 0.0000001,
+    epsilon = 0.001,
 ):
   """Generate tray geometry with all components."""
   # Calculated Parameters
