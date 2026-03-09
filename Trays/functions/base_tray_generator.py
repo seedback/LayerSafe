@@ -1,6 +1,7 @@
 from build123d import *
 from ocp_vscode import *
 
+
 def generate_base_tray(
     total_width=189.5,
     total_depth=66.0,
@@ -20,7 +21,7 @@ def generate_base_tray(
     hinge_lock_offset=0.4,
     hinge_lock_depth=8.3,
     is_double_tray=False,
-    epsilon = 0.001,
+    epsilon=0.001,
 ):
   """Generate tray geometry with all components."""
   # Calculated Parameters
@@ -39,8 +40,6 @@ def generate_base_tray(
   )
 
   hinge_depth += hinge_negative_space
-
-  
 
   # Middle
 
@@ -252,8 +251,9 @@ def generate_base_tray(
 
   return Compound([center.part, flap_compound])
 
+
 if __name__ == "__main__":
   center, flap = generate_base_tray()
 
   show(center, flap)
-#%%
+# %%

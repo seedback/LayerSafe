@@ -5,10 +5,11 @@ import math
 import copy
 from functions.base_tray_generator import generate_base_tray
 from functions.cutout_generator import generate_cutout
+from functions.full_tray_generator import generate_full_tray
 
 # %% User-Adjustable Parameters
 
-total_width = 189.5 # Default: 189.5
+total_width = 189.5  # Default: 189.5
 total_depth = 104  # Default: 66.0
 safety_margin = (14, 0.8)
 
@@ -34,49 +35,73 @@ hinge_lock_depth = 8.3
 
 is_double_tray = False
 
-base_tolerance = 0.6
+base_tolerance = .55
 epsilon = 0.001
-
-
 
 
 # %% Main execution
 
 if __name__ == "__main__":
-  base_radius = 49.5
-  width = base_radius + rail_width*2 + safety_margin[0]
-  depth = base_radius * 2 + 4 if base_radius * 2 + 4 > 66 else 66
-  tray_compound = generate_base_tray(
-    width,
-    depth,
-    is_double_tray=False,
-    epsilon=epsilon
-  )
-  cutout = (
-    generate_cutout(
-      base_radius,
-      tolerance=base_tolerance,
-      cutout_edge_spacing=safety_margin[1],
-      epsilon=epsilon
-    ).translate((
-      -width/2 + rail_width + safety_margin[0]/2,
-      -depth/2 + safety_margin[1],
-      floor_thickness,
-    ))
-  )
-  tray_compound -= cutout
- 
-  
-  # base_flap_part.part -= cutout
-  
-  # cutout = mirror(cutout, Plane.XZ)
-  
+  # base_radius = 49.5
+  # width = base_radius + rail_width*2 + safety_margin[0]
+  # depth = base_radius * 2 + 4 if base_radius * 2 + 4 > 66 else 66
+  # tray_compound = generate_base_tray(
+  #   width,
+  #   depth,
+  #   is_double_tray=False,
+  #   epsilon=epsilon
+  # )
+  # cutout = (
+  #   generate_cutout(
+  #     base_radius,
+  #     tolerance=base_tolerance,
+  #     cutout_edge_spacing=safety_margin[1],
+  #     epsilon=epsilon
+  #   ).translate((
+  #     -width/2 + rail_width + safety_margin[0]/2,
+  #     -depth/2 + safety_margin[1],
+  #     floor_thickness,
+  #   ))
+  # )
   # tray_compound -= cutout
-  # base_flap_part.part -= cutout
 
-  show(tray_compound, cutout)
+  # # base_flap_part.part -= cutout
 
-#%%
+  # # cutout = mirror(cutout, Plane.XZ)
+
+  # # tray_compound -= cutout
+  # # base_flap_part.part -= cutout
+
+  # show(tray_compound, cutout)
+
+  tray_compound = generate_full_tray(
+      [31.6],
+      safety_margin,
+      total_width,
+      total_depth,
+      floor_thickness,
+      base_heigth,
+      rail_height,
+      rail_width,
+      flap_center_gap,
+      flap_depth,
+      hinge_width,
+      hinge_height,
+      hinge_depth,
+      hinge_pin_radius,
+      hinge_pin_length,
+      bottom_chamfer,
+      hinge_lock_radius,
+      hinge_lock_offset,
+      hinge_lock_depth,
+      is_double_tray,
+      epsilon,
+      base_tolerance
+  )
+
+  # show(tray_compound)
+
+# %%
 if __name__ == "__main__":
   # show(export_compound, base_center_part, base_flap_part)
 
