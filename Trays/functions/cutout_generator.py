@@ -57,7 +57,7 @@ def generate_cutout(
   normal_base.part -= flattener.part
 
   return_compound = Compound(
-      [normal_base.part]).translate((-tolerance/2, 0, 0))
+      [normal_base.part])  # .translate((-tolerance/2, 0, 0))
 
   return return_compound
 

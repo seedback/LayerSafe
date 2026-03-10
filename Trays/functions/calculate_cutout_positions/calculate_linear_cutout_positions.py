@@ -12,15 +12,15 @@ def calculate_linear_cutout_positions(
 ):
   line_one = []
   line_two = []
-  
+
   max_width = usable_area['max']['x'] * 2
   line_one_total = 0
   line_two_total = 0
-  
+
   left_idx = 0
   right_idx = len(diameters) - 1
   take_from_left = True
-  
+
   # Alternate taking from start and end
   while left_idx <= right_idx:
     if take_from_left:
@@ -28,11 +28,14 @@ def calculate_linear_cutout_positions(
       if line_one_total + diameter <= max_width:
         line_one.append(diameter)
         line_one_total += diameter
-      elif line_two_total + diameter <= max_width:
+      elif is_double_tray and line_two_total + diameter <= max_width:
         line_two.append(diameter)
         line_two_total += diameter
       else:
-        raise ValueError("Diameter element exceeds usable area width in both lines")
+        raise ValueError(
+            "Total width of bases is too wide to fit on the tray.\n"
+            + "Remove a diameter from the list and try again."
+        )
       left_idx += 1
     else:
       diameter = diameters[right_idx]
@@ -43,34 +46,39 @@ def calculate_linear_cutout_positions(
         line_one.append(diameter)
         line_one_total += diameter
       else:
-        raise ValueError("Diameter element exceeds usable area width in both lines")
+        raise ValueError(
+            "Total width of bases is too wide to fit on the tray.\n"
+            + "Remove a diameter from the list and try again."
+        )
       right_idx -= 1
-    
-    take_from_left = not take_from_left
+
+    if is_double_tray:
+      take_from_left = not take_from_left
 
   x_positions = calculate_line_positions(
-    usable_area,
-    line_one,
-    tolerance
+      usable_area,
+      line_one,
+      tolerance
   )
-  
-  for pos in x_positions:
-    pos['y'] = usable_area['min']['y'] + pos['diameter'] / 2
-    pos['flipped'] = False
-  
-  y_positions = calculate_line_positions(
-    usable_area,
-    line_two,
-    tolerance
-  )
-  
-  for pos in y_positions:
-    pos['y'] = usable_area['max']['y'] - pos['diameter'] / 2
-    pos['flipped'] = True
 
-  positions = x_positions + y_positions
-  print("I am here")
-  print(positions)
+  for pos in x_positions:
+    pos['y'] = usable_area['min']['y'] + (pos['diameter'] + tolerance) / 2
+    pos['flipped'] = False
+
+  if is_double_tray:
+    y_positions = calculate_line_positions(
+        usable_area,
+        line_two,
+        tolerance
+    )
+
+    for pos in y_positions:
+      pos['y'] = usable_area['max']['y'] - (pos['diameter'] + tolerance) / 2
+      pos['flipped'] = True
+
+    positions = x_positions + y_positions
+  else:
+    positions = x_positions
 
   return positions
 
@@ -82,7 +90,7 @@ def calculate_line_positions(
 ):
   positions = []
   diameter_total = sum(diameters)
-  
+
   if diameter_total > usable_area['max']['x']*2:
     raise ValueError("Total diameter exceeds usable area width")
 
@@ -103,11 +111,36 @@ def calculate_line_positions(
 
       if i == 0:
         pos['x'] = -usable_area['max']['x'] + \
-            (diameters[0] - tolerance) / 2 + padding/2
+            (diameters[0] + tolerance) / 2 + padding/2
       else:
         pos['x'] = current_x + diameters[i-1] / \
             2 + diameter/2 + tolerance + padding
       current_x = pos['x']
       positions.append(pos)
-  
+
   return positions
+
+def calculate_alternating_cutout_positions(
+    usable_area,
+    diameters,
+    tolerance,
+    is_double_tray=False,
+):
+  if len(diameters) == 1:
+    return [{
+        'x': 0,
+        'diameter': diameters[0],
+    }]
+  
+  positions = []
+  
+  for i, diameter in enumerate(diameters):
+    if i == 0:
+      positions.append({
+        'x': usable_area['min']['x'] + diameter/2,
+        'diameter': diameters[0],
+      })
+  
+
+def calculate_alternating_cutout_positions_redistribution_pass():
+  pass

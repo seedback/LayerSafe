@@ -3,9 +3,9 @@ import copy
 import math
 from build123d import *
 from ocp_vscode import *
-from base_tray_generator import generate_base_tray
-from cutout_generator import generate_cutout
-from calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
+from .base_tray_generator import generate_base_tray
+from .cutout_generator import generate_cutout
+from .calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
 
 base_tray_storage = {}
 
@@ -19,16 +19,15 @@ def calculate_usable_area(
     tolerance
 ):
   usable_area = {}
-  tol = tolerance/2
   usable_area_min = {}
-  usable_area_min['x'] = -total_width/2 + rail_width + safety_margin[0] + tol
-  usable_area_min['y'] = -total_depth/2 + safety_margin[1] + tol
+  usable_area_min['x'] = -total_width/2 + rail_width + safety_margin[0]
+  usable_area_min['y'] = -total_depth/2 + safety_margin[1]
   usable_area['min'] = usable_area_min
 
   usable_area_max = {}
-  usable_area_max['x'] = total_width/2 - rail_width - safety_margin[0] - tol
+  usable_area_max['x'] = total_width/2 - rail_width - safety_margin[0]
   usable_area_max['y'] = total_depth/2 - \
-      safety_margin[1] - tol if is_double_tray else 0
+      safety_margin[1] if is_double_tray else 0
   usable_area['max'] = usable_area_max
 
   return usable_area
@@ -38,11 +37,12 @@ def calculate_cutout_positions(
     usable_area,
     diameters,
     tolerance,
+    safety_margin,
     is_double_tray=False,
 ):
-  positions = {}
+  positions = []
   max_diameter = max(diameters)
-  if max_diameter < usable_area['max']['y']*2:
+  if max_diameter < -usable_area['min']['y']:
     positions = calculate_linear_cutout_positions(
         usable_area, diameters, tolerance, is_double_tray)
 
@@ -53,7 +53,7 @@ def calculate_cutout_positions(
 
 def generate_full_tray(
     diameters=[],
-    safety_margin=(6.5, 0.8),
+    safety_margin=(6.5, 0.4),
     total_width=189.5,
     total_depth=66.0,
     floor_thickness=0.4,
@@ -75,7 +75,7 @@ def generate_full_tray(
     epsilon=0.001,
     tolerance=0.55,
     hinge_diameter=27.7,
-    cutout_edge_spacing=.8,
+    cutout_edge_spacing=.4,
 ):
   storage_key = ((total_width, total_depth), is_double_tray)
 
@@ -116,8 +116,7 @@ def generate_full_tray(
   )
 
   positions = calculate_cutout_positions(
-      usable_area, diameters, tolerance, is_double_tray)
-  print(positions)
+      usable_area, diameters, tolerance, safety_margin, is_double_tray)
 
   cutouts_list = []
 
@@ -128,7 +127,7 @@ def generate_full_tray(
         flap_depth,
         hinge_diameter,
         flap_center_gap,
-        cutout_edge_spacing,
+        safety_margin[1],
         epsilon
     ))
 
@@ -164,29 +163,31 @@ def generate_full_tray(
 
   # show(tray_compound)
 
-# # %%
-# if __name__ == "__main__":
-#   tray_compound = generate_full_tray(
-#       [28.1, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7],
-#       is_double_tray=True
-#   )
+# %%
+if __name__ == "__main__":
+  tray_compound, _ = generate_full_tray(
+      [28.1, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7],
+      safety_margin=(6.5, .8),
+      is_double_tray=True
+  )
 
-#   show(tray_compound)
+  show(tray_compound)
 
-#   export_stl(tray_compound, "../output/tray_1x28.1mm_11x24.7mm.stl")
-#   export_step(tray_compound, "../output/tray_1x28.1mm_11x24.7mm.step")
+  export_stl(tray_compound, "../output/tray_1x28.1mm_11x24.7mm.stl")
+  export_step(tray_compound, "../output/tray_1x28.1mm_11x24.7mm.step")
 
-# # %%
-# if __name__ == "__main__":
-#   tray_compound = generate_full_tray(
-#       [24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7],
-#       is_double_tray=True
-#   )
+# %%
+if __name__ == "__main__":
+  tray_compound, _ = generate_full_tray(
+      [24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7],
+      safety_margin=(6.5, .8),
+      is_double_tray=True
+  )
 
-#   show(tray_compound)
+  show(tray_compound)
 
-#   export_stl(tray_compound, "../output/tray_12x24.7mm.stl")
-#   export_step(tray_compound, "../output/tray_12x24.7mm.step")
+  export_stl(tray_compound, "../output/tray_12x24.7mm.stl")
+  export_step(tray_compound, "../output/tray_12x24.7mm.step")
 
 # # %%
 # if __name__ == "__main__":
@@ -204,7 +205,7 @@ def generate_full_tray(
 
 if __name__ == "__main__":
   tray_compound, cuttout_list = generate_full_tray(
-      [32, 32, 32, 32, 32, 32, 32, 32, 32, 32],
+      [32, 32],
       is_double_tray=True
   )
 

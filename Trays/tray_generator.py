@@ -3,15 +3,15 @@ from build123d import *
 from ocp_vscode import *
 import math
 import copy
-from functions.base_tray_generator import generate_base_tray
-from functions.cutout_generator import generate_cutout
 from functions.full_tray_generator import generate_full_tray
 
 # %% User-Adjustable Parameters
 
+diameters = [31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6]
+
 total_width = 189.5  # Default: 189.5
-total_depth = 104  # Default: 66.0
-safety_margin = (14, 0.8)
+total_depth = 66  # Default: 66.0
+safety_margin = (6.5, 0.8)
 
 floor_thickness = 0.4
 base_heigth = 4.2
@@ -33,7 +33,7 @@ hinge_lock_radius = 3.5
 hinge_lock_offset = 0.4
 hinge_lock_depth = 8.3
 
-is_double_tray = False
+is_double_tray = True
 
 base_tolerance = .55
 epsilon = 0.001
@@ -74,8 +74,8 @@ if __name__ == "__main__":
 
   # show(tray_compound, cutout)
 
-  tray_compound = generate_full_tray(
-      [31.6],
+  tray_compound, _ = generate_full_tray(
+      diameters,
       safety_margin,
       total_width,
       total_depth,
@@ -103,9 +103,9 @@ if __name__ == "__main__":
 
 # %%
 if __name__ == "__main__":
-  # show(export_compound, base_center_part, base_flap_part)
+  show(tray_compound)
 
-  export_stl(tray_compound, "output/tray_" + str(base_radius) + "mm.stl")
-  export_step(tray_compound, "output/tray_" + str(base_radius) + "mm.step")
+  export_stl(tray_compound, "output/test_tray.stl")
+  export_step(tray_compound, "output/test_tray.step")
 
 # %%
