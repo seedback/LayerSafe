@@ -63,17 +63,17 @@ def generate_base_tray(
       # Chamfer the two top edges along Y axis
       chamfer(b.edges().filter_by(Axis.Y).sort_by(Axis.Z)[-2:], 1)
     mirror(center.part, Plane.YZ)
-
+    
   # Hinge Negative
 
   # Main box for hinge negative
-  hinge_negative_offset = (-center_width / 2, -center_depth / 2, 0)
+  hinge_negative_offset = (-center_width / 2, -center_depth / 2 - epsilon, -epsilon)
   with BuildPart() as hinge_negative:
     with Locations(hinge_negative_offset):
       b = Box(
           hinge_negative_width,
-          hinge_negative_depth,
-          hinge_negative_height,
+          hinge_negative_depth + epsilon,
+          hinge_negative_height + epsilon,
           align=(Align.MIN, Align.MIN, Align.MIN),
       )
       fillet(
@@ -87,8 +87,8 @@ def generate_base_tray(
     with Locations(hinge_negative_offset):
       with Locations((
           -hinge_pin_length,
-          hinge_depth - 2 * hinge_pin_radius - hinge_pin_offset * 2,
-          hinge_pin_offset - hinge_negative_space,
+          hinge_depth - 2 * hinge_pin_radius - hinge_pin_offset * 2 + epsilon,
+          hinge_pin_offset - hinge_negative_space + epsilon,
       )):
         Cylinder(
             hinge_pin_radius + hinge_negative_space,
@@ -101,9 +101,9 @@ def generate_base_tray(
         )
     mirror(hinge_negative_pin.part, Plane.YZ)
 
-  # Final adjustments on Center
+  #Final adjustments on Center
 
-  # Apply hinge negative to center
+  #Apply hinge negative to center
   center.part -= hinge_negative.part
 
   # Apply chamfer to bottom-inner edge of hinge negative
@@ -177,8 +177,6 @@ def generate_base_tray(
 
   flap.part += hinge.part
 
-  # %%
-
   with BuildPart() as hinge_lock:
     with Locations((
         -(flap_width / 2 - hinge_lock_radius + hinge_lock_offset),
@@ -236,14 +234,15 @@ def generate_base_tray(
       e for e in arc_candidates
       if e.length > 0.001
   ])
-  flap_hinge_arc_edges = flap_hinge_arc_edges.sort_by(Axis.Y)[-8:]
+  flap_hinge_arc_edges = flap_hinge_arc_edges.sort_by(Axis.Y)[-12:]
 
   flap_chamfer_edges = flap_bottom_chamfer_edges + flap_hinge_arc_edges
-
+  
   flap.part = chamfer(flap_chamfer_edges, 0.4 - epsilon)
 
   # Decide whether it's one or two
   flap_compound = flap.part
+  
 
   if is_double_tray:
     center.part += mirror(center.part, Plane.XZ)
@@ -251,9 +250,10 @@ def generate_base_tray(
 
   return Compound([center.part, flap_compound])
 
+# %%
 
 if __name__ == "__main__":
-  center, flap = generate_base_tray()
+  center, flap = generate_base_tray(is_double_tray=True)
 
   show(center, flap)
 # %%
