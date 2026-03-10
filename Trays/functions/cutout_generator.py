@@ -67,5 +67,5 @@ def generate_cutout(
 if __name__ == "__main__":
   cutout = generate_cutout(32)
 
-  # show(cutout)
+  show(cutout)
 # %%

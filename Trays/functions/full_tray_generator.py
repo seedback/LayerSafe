@@ -3,9 +3,15 @@ import copy
 import math
 from build123d import *
 from ocp_vscode import *
-from .base_tray_generator import generate_base_tray
-from .cutout_generator import generate_cutout
-from .calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
+
+if __name__ == "__main__":
+  from base_tray_generator import generate_base_tray
+  from cutout_generator import generate_cutout
+  from calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
+else:
+  from .base_tray_generator import generate_base_tray
+  from .cutout_generator import generate_cutout
+  from .calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
 
 base_tray_storage = {}
 
@@ -179,15 +185,15 @@ if __name__ == "__main__":
 # %%
 if __name__ == "__main__":
   tray_compound, _ = generate_full_tray(
-      [24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7],
+      [28.1, 28.1, 28.1, 28.1, 28.1, 28.1, 28.1, 28.1, 28.1, 28.1, ],
       safety_margin=(6.5, .8),
       is_double_tray=True
   )
 
   show(tray_compound)
 
-  export_stl(tray_compound, "../output/tray_12x24.7mm.stl")
-  export_step(tray_compound, "../output/tray_12x24.7mm.step")
+  export_stl(tray_compound, "../output/tray_12x28.1mm.stl")
+  export_step(tray_compound, "../output/tray_12x28.1mm.step")
 
 # # %%
 # if __name__ == "__main__":
