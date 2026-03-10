@@ -35,7 +35,7 @@ def generate_cutout(
     with BuildSketch(Plane.YZ) as test:
       with Locations((-base_diameter/2 - tolerance/2 + delta_x - hinge_radius, 1.8)):
         Circle(hinge_radius, align=(Align.CENTER, Align.CENTER))
-    revolve_axis = Axis(origin=(0, -tolerance/2, 0), direction=(0,0,1))
+    revolve_axis = Axis(origin=(0, -tolerance/2, 0), direction=(0, 0, 1))
     r = revolve(axis=revolve_axis, mode=Mode.SUBTRACT)
     # Keep only the part of the lip adjustor that intersects with the flap
     with Locations((0, -base_diameter/2 - tolerance/2)):
@@ -53,7 +53,7 @@ def generate_cutout(
 
   with BuildPart() as flattener:
     flat = Box(base_diameter+tolerance*2, base_diameter+tolerance *
-        2, 1, align=(Align.CENTER, Align.CENTER, Align.MAX))
+               2, 1, align=(Align.CENTER, Align.CENTER, Align.MAX))
   normal_base.part -= flattener.part
 
   return_compound = Compound(
