@@ -46,6 +46,8 @@ def calculate_cutout_positions(
     safety_margin,
     is_double_tray=False,
 ):
+  if len(diameters) == 0:
+    return []
   positions = []
   max_diameter = max(diameters)
   if max_diameter < -usable_area['min']['y']:
@@ -62,7 +64,7 @@ def generate_full_tray(
     safety_margin=(6.5, 0.4),
     total_width=189.5,
     total_depth=66.0,
-    floor_thickness=0.4,
+    floor_thickness=0.8,
     base_heigth=4.2,
     rail_height=8.4,
     rail_width=4.8,
@@ -74,8 +76,8 @@ def generate_full_tray(
     hinge_pin_radius=1.4,
     hinge_pin_length=3,
     bottom_chamfer=0.4,
-    hinge_lock_radius=3.5,
-    hinge_lock_offset=0.4,
+    hinge_lock_radius=2,
+    hinge_lock_offset=0.5,
     hinge_lock_depth=8.3,
     is_double_tray=False,
     epsilon=0.001,
@@ -194,6 +196,19 @@ if __name__ == "__main__":
 
   export_stl(tray_compound, "../output/tray_12x28.1mm.stl")
   export_step(tray_compound, "../output/tray_12x28.1mm.step")
+  
+# %%
+if __name__ == "__main__":
+  tray_compound, _ = generate_full_tray(
+      [29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8],
+      safety_margin=(6.5, .8),
+      is_double_tray=True
+  )
+
+  show(tray_compound)
+
+  export_stl(tray_compound, "../output/tray_12xRGGHandleLarge.stl")
+  export_step(tray_compound, "../output/tray_12xRGGHandleLarge.step")
 
 # # %%
 # if __name__ == "__main__":
@@ -207,13 +222,17 @@ if __name__ == "__main__":
 #   export_stl(tray_compound, "../output/tray_5x39.3mm.stl")
 #   export_step(tray_compound, "../output/tray_5x39.3mm.step")
 
-# # %%
+# %%
 
 if __name__ == "__main__":
   tray_compound, cuttout_list = generate_full_tray(
-      [32, 32],
-      is_double_tray=True
+      # [29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8],
+      is_double_tray=True,
+      total_width= 10 + 6.5*2 + 5
   )
+  
+  export_stl(tray_compound, "../output/tray_test.stl")
+  export_step(tray_compound, "../output/tray_test.step")
 
   show(tray_compound, cuttout_list)
 
