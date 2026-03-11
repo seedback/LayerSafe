@@ -89,8 +89,8 @@ def generate_base_tray(
     with Locations(hinge_negative_offset):
       with Locations((
           -hinge_pin_length,
-          hinge_depth - 2 * hinge_pin_radius - hinge_pin_offset * 2 + epsilon,
-          hinge_pin_offset - hinge_negative_space + hinge_top_offset/2 + epsilon,
+          hinge_depth - 2 * hinge_pin_radius - hinge_pin_offset * 2 + hinge_top_offset/2 + epsilon,
+          hinge_pin_offset - hinge_negative_space + epsilon,
       )):
         Cylinder(
             hinge_pin_radius + hinge_negative_space,
@@ -173,7 +173,7 @@ def generate_base_tray(
           )
     fillet(
         hinge.edges().filter_by(Axis.X).sort_by(Axis.Y)[-2:],
-        hinge_height / 2 - epsilon,
+        (hinge_height + hinge_top_offset) / 2 - epsilon,
     )
     mirror(hinge.part, Plane.YZ)
 

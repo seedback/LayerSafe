@@ -227,8 +227,9 @@ if __name__ == "__main__":
 if __name__ == "__main__":
   tray_compound, cuttout_list = generate_full_tray(
       # [29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8],
-      is_double_tray=True,
-      total_width= 10 + 6.5*2 + 5
+      [24.7],
+      is_double_tray=False,
+      total_width= 10 + 6.5*2 + 24.7
   )
   
   export_stl(tray_compound, "../output/tray_test.stl")
