@@ -5,14 +5,19 @@ import math
 def calculate_alternating_cutout_positions(
     usable_area,
     diameters,
+    tolerance
 ):
-  if len(diameters) == 1:
+  full_diameters = []
+  for diameter in diameters:
+    full_diameters.append(diameter + tolerance)
+  
+  if len(full_diameters) == 1:
     return [{
         'x': 0,
-        'diameter': diameters[0],
+        'diameter': full_diameters[0],
     }]
 
-  positions = _calculate_initial_positions(usable_area, diameters)
+  positions = _calculate_initial_positions(usable_area, full_diameters)
 
   return positions
 
@@ -48,23 +53,25 @@ def _calculate_initial_positions(
     if error < 0.01:
       break
 
-  # Validate: check for overlaps and boundary violations
+# Validate: check for overlaps and boundary violations
+  edge_tolerance = 0.1  # Allow 0.1mm tolerance for floating-point precision
+  gap_tolerance = 0.4   # Minimum 0.4mm gap between circles
   has_error = False
+  
   for i, pos in enumerate(positions):
-    # Check boundaries
+    # Check boundaries (allow small tolerance for floating-point precision)
     left_edge = pos['x'] - pos['diameter'] / 2
     right_edge = pos['x'] + pos['diameter'] / 2
     top_edge = pos['y'] + pos['diameter'] / 2
     bottom_edge = pos['y'] - pos['diameter'] / 2
 
-    if (left_edge < usable_area['min']['x'] or
-        right_edge > usable_area['max']['x'] or
-        top_edge > usable_area['max']['y'] or
-            bottom_edge < usable_area['min']['y']):
-      has_error = True
+    if (left_edge < usable_area['min']['x'] - edge_tolerance or 
+        right_edge > usable_area['max']['x'] + edge_tolerance or
+        top_edge > usable_area['max']['y'] + edge_tolerance or 
+        bottom_edge < usable_area['min']['y'] - edge_tolerance):
       break
 
-  # Check for overlaps
+  # Check for overlaps (minimum 0.4mm gap required)
   distances = []
   for i in range(len(positions) - 1):
     dx = positions[i+1]['x'] - positions[i]['x']
@@ -75,7 +82,7 @@ def _calculate_initial_positions(
         positions[i]['diameter']/2 - positions[i+1]['diameter']/2
     distances.append(edge_distance)
 
-    if edge_distance < 0:
+    if edge_distance < gap_tolerance:
       has_error = True
 
   if has_error:
