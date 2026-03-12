@@ -7,7 +7,6 @@ import math
 def calculate_linear_cutout_positions(
     usable_area,
     diameters,
-    tolerance,
     is_double_tray=False,
 ):
   line_one = []
@@ -57,23 +56,21 @@ def calculate_linear_cutout_positions(
 
   x_positions = calculate_line_positions(
       usable_area,
-      line_one,
-      tolerance
+      line_one
   )
 
   for pos in x_positions:
-    pos['y'] = usable_area['min']['y'] + (pos['diameter'] + tolerance) / 2
+    pos['y'] = usable_area['min']['y'] + (pos['diameter']) / 2
     pos['flipped'] = False
 
   if is_double_tray:
     y_positions = calculate_line_positions(
         usable_area,
         line_two,
-        tolerance
     )
 
     for pos in y_positions:
-      pos['y'] = usable_area['max']['y'] - (pos['diameter'] + tolerance) / 2
+      pos['y'] = usable_area['max']['y'] - (pos['diameter']) / 2
       pos['flipped'] = True
 
     positions = x_positions + y_positions
@@ -86,13 +83,15 @@ def calculate_linear_cutout_positions(
 def calculate_line_positions(
     usable_area,
     diameters,
-    tolerance,
 ):
   positions = []
   diameter_total = sum(diameters)
 
   if diameter_total > usable_area['max']['x']*2:
-    raise ValueError("Total diameter exceeds usable area width")
+    raise ValueError(
+        "Total width of bases is too wide to fit on the tray.\n"
+        + "Remove a diameter from the list and try again."
+    )
 
   if (len(diameters) == 0):
     pass
@@ -111,36 +110,11 @@ def calculate_line_positions(
 
       if i == 0:
         pos['x'] = -usable_area['max']['x'] + \
-            (diameters[0] + tolerance) / 2 + padding/2
+            (diameters[0]) / 2 + padding/2
       else:
         pos['x'] = current_x + diameters[i-1] / \
-            2 + diameter/2 + tolerance + padding
+            2 + diameter/2 + padding
       current_x = pos['x']
       positions.append(pos)
 
   return positions
-
-def calculate_alternating_cutout_positions(
-    usable_area,
-    diameters,
-    tolerance,
-    is_double_tray=False,
-):
-  if len(diameters) == 1:
-    return [{
-        'x': 0,
-        'diameter': diameters[0],
-    }]
-  
-  positions = []
-  
-  for i, diameter in enumerate(diameters):
-    if i == 0:
-      positions.append({
-        'x': usable_area['min']['x'] + diameter/2,
-        'diameter': diameters[0],
-      })
-  
-
-def calculate_alternating_cutout_positions_redistribution_pass():
-  pass
