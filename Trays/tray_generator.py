@@ -4,6 +4,7 @@ from ocp_vscode import *
 import math
 import copy
 import argparse
+import os
 from collections import Counter
 from functions.full_tray_generator import generate_full_tray
 
@@ -50,12 +51,19 @@ if __name__ == "__main__":
   import sys
   import io
   
-  # Force unbuffered output
-  sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+  # Force unbuffered output (only works on command line, skip in Jupyter)
+  try:
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+  except AttributeError:
+    # In Jupyter, sys.stdout doesn't have a 'buffer' attribute - that's fine, skip it
+    pass
   
   try:
-    # Check if running from command line (has diameters argument)
-    if len(sys.argv) > 1:
+    # Detect if running in Jupyter/IPython
+    is_jupyter = 'ipykernel' in sys.argv[0] or 'jupyter' in sys.argv[0].lower()
+    
+    # Check if running from command line (has diameters argument) and NOT in Jupyter
+    if len(sys.argv) > 1 and not is_jupyter:
       parser = argparse.ArgumentParser(
           description="Generate a tray with custom base cutouts\n"
           + "Usage:   \"python tray_generator.py [diameters] [options]\"\n"
@@ -168,6 +176,9 @@ if __name__ == "__main__":
     )
     print("Tray generated successfully", flush=True)
     sys.stdout.flush()
+
+    # Ensure output directory exists
+    os.makedirs("output", exist_ok=True)
 
     export_stl(tray_compound, f"output/{output_filename}.stl")
     print(f"Exported: output/{output_filename}.stl", flush=True)
