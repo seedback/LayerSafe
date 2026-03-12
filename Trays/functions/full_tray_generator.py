@@ -161,6 +161,7 @@ def generate_full_tray(
 
 # %%
 
+
 if __name__ == "__main__":
   tray_compound, cuttout_list = generate_full_tray(
       [39.3, 39.3, 39.3, 39.3, 39.3, ],

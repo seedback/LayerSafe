@@ -48,7 +48,6 @@ def _calculate_initial_positions(
     if error < 0.01:
       break
 
-
   # Validate: check for overlaps and boundary violations
   has_error = False
   for i, pos in enumerate(positions):
@@ -57,11 +56,11 @@ def _calculate_initial_positions(
     right_edge = pos['x'] + pos['diameter'] / 2
     top_edge = pos['y'] + pos['diameter'] / 2
     bottom_edge = pos['y'] - pos['diameter'] / 2
-    
-    if (left_edge < usable_area['min']['x'] or 
+
+    if (left_edge < usable_area['min']['x'] or
         right_edge > usable_area['max']['x'] or
-        top_edge > usable_area['max']['y'] or 
-        bottom_edge < usable_area['min']['y']):
+        top_edge > usable_area['max']['y'] or
+            bottom_edge < usable_area['min']['y']):
       has_error = True
       break
 
@@ -81,8 +80,8 @@ def _calculate_initial_positions(
 
   if has_error:
     raise ValueError(
-       "Total width of bases is too wide to fit on the tray.\n"
-       + "Remove a diameter from the list and try again."
+        "Total width of bases is too wide to fit on the tray.\n"
+        + "Remove a diameter from the list and try again."
     )
 
   return positions

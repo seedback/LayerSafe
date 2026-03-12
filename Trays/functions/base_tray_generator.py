@@ -91,7 +91,8 @@ def generate_base_tray(
     with Locations(hinge_negative_offset):
       with Locations((
           -hinge_pin_length,
-          hinge_depth - 2 * hinge_pin_radius - hinge_pin_offset * 2 + hinge_top_offset/2 + epsilon,
+          hinge_depth - 2 * hinge_pin_radius -
+          hinge_pin_offset * 2 + hinge_top_offset/2 + epsilon,
           hinge_pin_offset - hinge_negative_space + epsilon,
       )):
         Cylinder(

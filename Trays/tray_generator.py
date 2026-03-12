@@ -42,37 +42,6 @@ epsilon = 0.001
 # %% Main execution
 
 if __name__ == "__main__":
-  # base_radius = 49.5
-  # width = base_radius + rail_width*2 + safety_margin[0]
-  # depth = base_radius * 2 + 4 if base_radius * 2 + 4 > 66 else 66
-  # tray_compound = generate_base_tray(
-  #   width,
-  #   depth,
-  #   is_double_tray=False,
-  #   epsilon=epsilon
-  # )
-  # cutout = (
-  #   generate_cutout(
-  #     base_radius,
-  #     tolerance=base_tolerance,
-  #     cutout_edge_spacing=safety_margin[1],
-  #     epsilon=epsilon
-  #   ).translate((
-  #     -width/2 + rail_width + safety_margin[0]/2,
-  #     -depth/2 + safety_margin[1],
-  #     floor_thickness,
-  #   ))
-  # )
-  # tray_compound -= cutout
-
-  # # base_flap_part.part -= cutout
-
-  # # cutout = mirror(cutout, Plane.XZ)
-
-  # # tray_compound -= cutout
-  # # base_flap_part.part -= cutout
-
-  # show(tray_compound, cutout)
 
   tray_compound, _ = generate_full_tray(
       diameters,
@@ -99,10 +68,6 @@ if __name__ == "__main__":
       base_tolerance
   )
 
-  # show(tray_compound)
-
-# %%
-if __name__ == "__main__":
   show(tray_compound)
 
   export_stl(tray_compound, "output/test_tray.stl")
