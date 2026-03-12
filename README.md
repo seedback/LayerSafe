@@ -24,7 +24,7 @@ LayerSafe generates parametric 3D tray designs featuring:
 
 1. **Clone the repository:**
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/seedback/LayerSafe
    cd LayerSafe
    ```
 
@@ -40,22 +40,93 @@ LayerSafe generates parametric 3D tray designs featuring:
 
 ## Usage
 
-### Basic Usage
+### Command-Line Interface
 
-1. **Open the main script:**
-   Open `Trays/tray_generator.py` in your Python IDE or VS Code
+The tray generator is designed to be run from the command line, making it easy for anyone to use without setting up an IDE.
 
-2. **Run the script:**
-   - In VS Code with Python extension: Run the script with `F5` or use the Run button
-   - From command line: `python Trays/tray_generator.py`
+#### Basic Syntax
 
-3. **View the 3D model:**
-   - The script will display a 3D preview in VS Code if using the OCP VSCode extension
-   - Generated files are saved to `Trays/output/`
+```bash
+python Trays/tray_generator.py <diameter1> <diameter2> ... [options]
+```
 
-### Customizing Your Tray
+#### Simple Examples
 
-Edit the **User-Adjustable Parameters** section at the top of `tray_generator.py`:
+Generate a tray with 6 circles of 31.6mm diameter:
+```bash
+python Trays/tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6
+```
+
+Generate a tray with mixed diameters (2× 25.4mm and 1× 31.6mm):
+```bash
+python Trays/tray_generator.py 25.4 25.4 31.6
+```
+
+#### Available Options
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `--width` | float | 189.5 | Total tray width in mm |
+| `--depth` | float | 66.0 | Total tray depth in mm |
+| `--safety-margin-x` | float | 6.5 | Horizontal margin from edges (mm) |
+| `--safety-margin-y` | float | 0.8 | Vertical margin from edges (mm) |
+| `--tolerance` | float | 0.55 | Tolerance for circle fit (mm) |
+| `--output` | string | auto | Output filename (without extension) |
+
+#### Advanced Examples
+
+Adjust safety margins for a tight fit:
+```bash
+python Trays/tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4
+```
+
+Custom dimensions with tolerance adjustment:
+```bash
+python Trays/tray_generator.py 25.4 25.4 25.4 --width 200 --depth 80 --tolerance 0.6
+```
+
+Specify a custom output filename:
+```bash
+python Trays/tray_generator.py 31.6 31.6 31.6 --output my_custom_tray
+```
+
+Combine all options:
+```bash
+python Trays/tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4 --tolerance 0.6 --width 190 --output special_tray
+```
+
+#### Getting Help
+
+View all available options:
+```bash
+python Trays/tray_generator.py --help
+```
+
+#### Output
+
+Generated files are automatically saved to `Trays/output/`:
+- **STL format** (`.stl`) — Suitable for 3D printing
+- **STEP format** (`.step`) — Suitable for CAD software and CNC machines
+
+Filenames are auto-generated based on your diameter input (e.g., `tray_6x31.6mm.stl`), or you can specify a custom name with `--output`.
+
+### Jupyter Notebook (Optional)
+
+If you prefer an interactive notebook environment:
+1. Open `Trays/tray_generator.ipynb` in Jupyter
+2. Modify the default parameters in the notebook and run cells
+3. View the 3D model preview in the notebook output
+
+### Python IDE Usage (Optional)
+
+To use in VS Code or another IDE:
+1. Open `Trays/tray_generator.py` 
+2. Modify the default parameters in the "User-Adjustable Parameters" section
+3. Run the script (VS Code: F5 or Run button)
+
+### Customizing Tray Parameters
+
+For more detailed customization, you can edit the **User-Adjustable Parameters** section in `tray_generator.py`:
 
 ```python
 total_width = 189.5        # Overall tray width (mm)
@@ -68,32 +139,7 @@ flap_depth = 11.8          # Depth of hinged flap (mm)
 flap_center_gap = 0.2      # Gap between flap and base (mm)
 hinge_width = 2.8          # Width of hinge mechanism (mm)
 hinge_height = 3.6         # Height of hinge mechanism (mm)
-is_double_tray = False     # Set to True for stacked tray configuration
-cutout_edge_spacing = 0.8  # Distance of cutouts from edges (mm)
-```
-
-## Exporting Models
-
-The script automatically exports generated models in two formats:
-
-### STEP Format (STEP)
-- Better for CAD software and CNC machines
-- Preserves full geometry information
-- File: `Trays/output/tray.step`
-
-### STL Format (STL)
-- Better for 3D printing
-- Suitable for most slicing software
-- File: `Trays/output/tray.stl`
-
-To export only to a specific format, modify the `if __name__ == "__main__":` section at the bottom of `tray_generator.py`:
-
-```python
-# Export to STEP only
-export_step(export_compound, "output/tray.step")
-
-# Or export to STL only
-export_stl(export_compound, "output/tray.stl")
+is_double_tray = True      # Set to True for stacked tray configuration
 ```
 
 ## License
