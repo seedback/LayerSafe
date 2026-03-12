@@ -50,6 +50,8 @@ The tray generator is designed to be run from the command line, making it easy f
 python Trays/tray_generator.py <diameter1> <diameter2> ... [options]
 ```
 
+> **⚠️ Important:** Base diameters should be measured as accurately as possible. Precision down to **0.1mm** is recommended for proper fit. Use quality calipers with good accuracy (±0.1mm or better) to measure your bases before generating the tray.
+
 #### Simple Examples
 
 Generate a tray with 6 circles of 31.6mm diameter:
