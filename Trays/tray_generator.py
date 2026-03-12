@@ -189,7 +189,22 @@ if __name__ == "__main__":
     print(f"{output_filename} complete", flush=True)
 
   except Exception as e:
-    print(f"Error: {type(e).__name__}: {e}", flush=True)
+    error_message = str(e)
+    
+    # ANSI color codes for red text
+    RED = "\033[91m"
+    RESET = "\033[0m"
+    
+    # Check for math domain error - usually caused by mixing large and small diameter bases
+    if "math domain error" in error_message.lower():
+      print(f"{RED}Error: Cannot fit base configuration.{RESET}", flush=True)
+      print(f"{RED}Mixing large base diameters (32mm+) with small base diameters (<32mm) requires{RESET}", flush=True)
+      print(f"{RED}alternating them in the layout. Multiple small bases in a row causes geometric conflicts.{RESET}", flush=True)
+      print(f"{RED}Try: Distribute smaller diameters throughout with larger ones in between.{RESET}", flush=True)
+      print(f"{RED}Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]{RESET}", flush=True)
+    else:
+      print(f"{RED}Error: {type(e).__name__}: {e}{RESET}", flush=True)
+    
     sys.stdout.flush()
     exit(1)
 
