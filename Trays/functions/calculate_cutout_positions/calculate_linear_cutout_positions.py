@@ -7,8 +7,13 @@ import math
 def calculate_linear_cutout_positions(
     usable_area,
     diameters,
+    tolerance,
     is_double_tray=False,
 ):
+  full_diameters = []
+  for diameter in diameters:
+    full_diameters.append(diameter + tolerance)
+  
   line_one = []
   line_two = []
 

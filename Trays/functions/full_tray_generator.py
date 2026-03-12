@@ -23,21 +23,21 @@ def calculate_usable_area(
     total_depth,
     rail_width,
     safety_margin,
+    tolerance,
     is_double_tray,
-    tolerance
 ):
   usable_area = {}
   usable_area_min = {}
   usable_area_min['x'] = -total_width/2 + \
-      rail_width + tolerance + safety_margin[0]
-  usable_area_min['y'] = -total_depth/2 + tolerance + safety_margin[1]
+      rail_width + safety_margin[0]
+  usable_area_min['y'] = -total_depth/2 + safety_margin[1] + tolerance/2
   usable_area['min'] = usable_area_min
 
   usable_area_max = {}
   usable_area_max['x'] = total_width/2 - \
-      rail_width - tolerance - safety_margin[0]
+      rail_width - safety_margin[0]
   if is_double_tray:
-    usable_area_max['y'] = total_depth/2 - tolerance - safety_margin[1]
+    usable_area_max['y'] = total_depth/2 - safety_margin[1] - tolerance/2
   else:
     usable_area_max['y'] = 0
   usable_area['max'] = usable_area_max
@@ -48,6 +48,7 @@ def calculate_usable_area(
 def calculate_cutout_positions(
     usable_area,
     diameters,
+    tolerance,
     is_double_tray=False,
 ):
   if len(diameters) == 0:
@@ -56,9 +57,9 @@ def calculate_cutout_positions(
   max_diameter = max(diameters)
   if max_diameter < -usable_area['min']['y'] or not is_double_tray:
     positions = calculate_linear_cutout_positions(
-        usable_area, diameters, is_double_tray)
+        usable_area, diameters, tolerance, is_double_tray)
   else:
-    positions = calculate_alternating_cutout_positions(usable_area, diameters)
+    positions = calculate_alternating_cutout_positions(usable_area, diameters, tolerance)
 
   return positions
 
@@ -89,8 +90,7 @@ def generate_full_tray(
     epsilon=0.001,
     tolerance=0.55,
     hinge_diameter=27.7,
-    cutout_edge_spacing=.4,
-):
+):  
   storage_key = ((total_width, total_depth), is_double_tray)
 
   # Create a base tray if one of the given dimmension doesn't exist
@@ -125,12 +125,12 @@ def generate_full_tray(
       total_depth,
       rail_width,
       safety_margin,
+      tolerance,
       is_double_tray,
-      tolerance
   )
 
   positions = calculate_cutout_positions(
-      usable_area, diameters, is_double_tray)
+      usable_area, diameters, tolerance, is_double_tray)
 
   cutouts_list = []
 
@@ -162,15 +162,16 @@ def generate_full_tray(
 # %%
 
 
-if __name__ == "__main__":
-  tray_compound, cuttout_list = generate_full_tray(
-      [39.3, 39.3, 39.3, 39.3, 39.3, ],
-      is_double_tray=True,
-  )
+# if __name__ == "__main__":
+#   tray_compound, cuttout_list = generate_full_tray(
+#       [50,50,50],
+#       is_double_tray=True,
+#       safety_margin=(6.5, 0.8),
+#   )
 
-  show(tray_compound, cuttout_list)
+#   show(tray_compound, cuttout_list)
 
-  export_stl(tray_compound, "../output/test_RGG_tray.stl")
-  export_step(tray_compound, "../output/test_RGG_tray.step")
+#   export_stl(tray_compound, "../output/test_RGG_tray.stl")
+#   export_step(tray_compound, "../output/test_RGG_tray.step")
 
 # %%

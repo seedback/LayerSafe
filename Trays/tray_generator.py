@@ -3,9 +3,13 @@ from build123d import *
 from ocp_vscode import *
 import math
 import copy
+import argparse
+from collections import Counter
 from functions.full_tray_generator import generate_full_tray
 
-# %% User-Adjustable Parameters
+
+
+# %% User-Adjustable Parameters (Defaults)
 
 diameters = [31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6]
 
@@ -37,40 +41,148 @@ is_double_tray = True
 
 base_tolerance = .55
 epsilon = 0.001
+custom_filename = "output/test_tray"
 
 
 # %% Main execution
 
 if __name__ == "__main__":
+  import sys
+  import io
+  
+  # Force unbuffered output
+  sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+  
+  try:
+    # Check if running from command line (has diameters argument)
+    if len(sys.argv) > 1:
+      parser = argparse.ArgumentParser(
+          description="Generate a tray with custom base cutouts\n"
+          + "Usage:   \"python tray_generator.py [diameters] [options]\"\n"
+          + "Example: \"python tray_generator.py 24.7 24.7 24.7 24.7 24.7 24.7\"\n"
+          + "Example: \"python tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4\"\n"
+          + "Example: \"python tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4 --tolerance 0.6\"\n",
+          formatter_class=argparse.RawDescriptionHelpFormatter
+      )
+      parser.add_argument(
+          "diameters",
+          type=float,
+          nargs="+",
+          help="Space-separated list of base diameters (e.g., 31.6 31.6 25.4)"
+      )
+      parser.add_argument(
+          "--width",
+          type=float,
+          default=total_width,
+          help=f"Total tray width (default: {total_width})"
+      )
+      parser.add_argument(
+          "--depth",
+          type=float,
+          default=total_depth,
+          help=f"Total tray depth (default: {total_depth})"
+      )
+      parser.add_argument(
+          "--output",
+          type=str,
+          default=None,
+          help="Output file path without extension (default: auto-generated from diameter summary)"
+      )
+      parser.add_argument(
+          "--safety-margin-x",
+          type=float,
+          default=None,
+          help=f"Horizontal safety margin from edges (default: {safety_margin[0]})"
+      )
+      parser.add_argument(
+          "--safety-margin-y",
+          type=float,
+          default=None,
+          help=f"Vertical safety margin from edges (default: {safety_margin[1]}). If generating a tray of bases around 32mm, you may have to lower this to 0.4."
+      )
+      parser.add_argument(
+          "--tolerance",
+          type=float,
+          default=None,
+          help=f"Tolerance for base fit (default: {base_tolerance})"
+      )
+      
+      args = parser.parse_args()
+      
+      # Override defaults with command line arguments
+      diameters = args.diameters
+      total_width = args.width
+      total_depth = args.depth
+      custom_output = args.output
+      
+      # Handle safety margins - use provided values or keep defaults
+      margin_x = args.safety_margin_x if args.safety_margin_x is not None else safety_margin[0]
+      margin_y = args.safety_margin_y if args.safety_margin_y is not None else safety_margin[1]
+      safety_margin = (margin_x, margin_y)
+      
+      # Handle tolerance - use provided value or keep default
+      if args.tolerance is not None:
+        base_tolerance = args.tolerance
+    else:
+      # No arguments - use defaults
+      custom_output = None
+      
+    # Create a summary of diameters (count how many of each size)
+    diameter_count = Counter(diameters)
+    diameter_summary = sorted(diameter_count.items())
+    
+    # Generate filename from diameter summary if not provided
+    if custom_output:
+      output_filename = custom_output
+    else:
+      # Create filename like "tray_31.6x10_25.4x5" from the diameter summary
+      filename_parts = [f"{count}x{diameter}mm" for diameter, count in diameter_summary]
+      output_filename = f"tray_{'_'.join(filename_parts)}"
+    
+    print("Generating", output_filename, flush=True)
+    sys.stdout.flush()
 
-  tray_compound, _ = generate_full_tray(
-      diameters,
-      safety_margin,
-      total_width,
-      total_depth,
-      floor_thickness,
-      base_heigth,
-      rail_height,
-      rail_width,
-      flap_center_gap,
-      flap_depth,
-      hinge_width,
-      hinge_height,
-      hinge_depth,
-      hinge_pin_radius,
-      hinge_pin_length,
-      bottom_chamfer,
-      hinge_lock_radius,
-      hinge_lock_offset,
-      hinge_lock_depth,
-      is_double_tray,
-      epsilon,
-      base_tolerance
-  )
+    tray_compound, _ = generate_full_tray(
+        diameters,
+        safety_margin,
+        total_width,
+        total_depth,
+        floor_thickness,
+        base_heigth,
+        rail_height,
+        rail_width,
+        flap_center_gap,
+        flap_depth,
+        hinge_width,
+        hinge_height,
+        hinge_depth,
+        hinge_pin_radius,
+        hinge_pin_length,
+        bottom_chamfer,
+        hinge_lock_radius,
+        hinge_lock_offset,
+        hinge_lock_depth,
+        is_double_tray,
+        epsilon,
+        base_tolerance
+    )
+    print("Tray generated successfully", flush=True)
+    sys.stdout.flush()
 
-  show(tray_compound)
+    export_stl(tray_compound, f"output/{output_filename}.stl")
+    print(f"Exported: output/{output_filename}.stl", flush=True)
 
-  export_stl(tray_compound, "output/test_tray.stl")
-  export_step(tray_compound, "output/test_tray.step")
+    export_step(tray_compound, f"output/{output_filename}.step")
+    print(f"Exported: output/{output_filename}.step", flush=True)
+    
+    print(f"{output_filename} complete", flush=True)
+
+  except Exception as e:
+    print(f"Error: {type(e).__name__}: {e}", flush=True)
+    sys.stdout.flush()
+    import traceback
+    traceback.print_exc()
+    sys.stdout.flush()
+    exit(1)
 
 # %%

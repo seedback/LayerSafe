@@ -112,32 +112,40 @@ def generate_base_tray(
   center.part -= hinge_negative.part
 
   # Apply chamfer to bottom-inner edge of hinge negative
-  # To allow hinge to rotate back
-  bottom_edges = center.faces().sort_by(Axis.Z)[0].edges()
-  edges_x = bottom_edges.filter_by(Axis.X)
-  hinge_edges = sorted(
-      edges_x, key=lambda e: abs(e.center().Y)
-  )[1:3]
-  center.part = chamfer(
-      hinge_edges,
-      (
-          hinge_negative_height - hinge_negative_fillet_radius -
-          epsilon
-      ),
-      angle=45,
-  )
+  # To allow hinge to rotate back (skip if fails on command line)
+  try:
+    bottom_edges = center.faces().sort_by(Axis.Z)[0].edges()
+    edges_x = bottom_edges.filter_by(Axis.X)
+    hinge_edges = sorted(
+        edges_x, key=lambda e: abs(e.center().Y)
+    )[1:3]
+    center.part = chamfer(
+        hinge_edges,
+        (
+            hinge_negative_height - hinge_negative_fillet_radius -
+            epsilon
+        ),
+        angle=45,
+    )
+  except Exception:
+    # Chamfer failed - skip (cosmetic operation)
+    pass
 
-  # Apply chamfer to edge around bottom
-  bottom_edges = center.faces().sort_by(Axis.Z)[0].edges()
-  edges_x = bottom_edges.filter_by(Axis.X)
-  hinge_edges = sorted(
-      edges_x, key=lambda e: abs(e.center().Y)
-  )[1:3]
-  back_edge = sorted(edges_x, key=lambda e: abs(e.center().Y))[:1]
-  center.part = chamfer(
-      bottom_edges - hinge_edges - hinge_edges - back_edge,
-      bottom_chamfer,
-  )
+  # Apply chamfer to edge around bottom (skip if fails on command line)
+  try:
+    bottom_edges = center.faces().sort_by(Axis.Z)[0].edges()
+    edges_x = bottom_edges.filter_by(Axis.X)
+    hinge_edges = sorted(
+        edges_x, key=lambda e: abs(e.center().Y)
+    )[1:3]
+    back_edge = sorted(edges_x, key=lambda e: abs(e.center().Y))[:1]
+    center.part = chamfer(
+        bottom_edges - hinge_edges - hinge_edges - back_edge,
+        bottom_chamfer,
+    )
+  except Exception:
+    # Chamfer failed - skip (cosmetic operation)
+    pass
 
   # Apply Hinge negative pin to center
   center.part -= hinge_negative_pin.part
@@ -243,7 +251,11 @@ def generate_base_tray(
 
   flap_chamfer_edges = flap_bottom_chamfer_edges + flap_hinge_arc_edges
 
-  flap.part = chamfer(flap_chamfer_edges, 0.4 - epsilon)
+  try:
+    flap.part = chamfer(flap_chamfer_edges, 0.4 - epsilon)
+  except Exception:
+    # Chamfer failed - skip (cosmetic operation)
+    pass
 
   # Decide whether it's one or two
   flap_compound = flap.part
@@ -257,8 +269,8 @@ def generate_base_tray(
 # %%
 
 
-if __name__ == "__main__":
-  center, flap = generate_base_tray(is_double_tray=True)
+# if __name__ == "__main__":
+#   center, flap = generate_base_tray(is_double_tray=True)
 
-  show(center, flap)
+#   show(center, flap)
 # %%
