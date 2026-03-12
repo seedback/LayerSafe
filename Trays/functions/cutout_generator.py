@@ -64,6 +64,39 @@ def generate_cutout(
 # %%
 
 
+def generate_square_cutout(
+    side_size,
+    tolerance=0.6,
+    flap_depth=11.8,
+    hinge_diameter=27.7,
+    flap_center_gap=0.2,
+    cutout_edge_spacing=.8,
+    epsilon=0.001
+):
+  half_side = side_size / 2 + tolerance / 2
+
+  with BuildPart() as normal_base:
+    with BuildSketch():
+      Rectangle(side_size + tolerance, side_size + tolerance,
+                align=(Align.CENTER, Align.CENTER))
+    extrude(amount=5, taper=5)
+    # Add the slide path for the base (same approach as circular cutout)
+    cross_section_result = section(normal_base.part, Plane.XZ)
+    extrude(cross_section_result,
+            half_side - flap_depth - flap_center_gap + cutout_edge_spacing)
+  normal_base.part = normal_base.part.translate((0, 0, -epsilon))
+
+  with BuildPart() as flattener:
+    flat = Box(side_size + tolerance * 2, side_size + tolerance * 2,
+               1, align=(Align.CENTER, Align.CENTER, Align.MAX))
+  normal_base.part -= flattener.part
+
+  return Compound([normal_base.part])
+
+
+# %%
+
+
 if __name__ == "__main__":
   cutout = generate_cutout(32)
 

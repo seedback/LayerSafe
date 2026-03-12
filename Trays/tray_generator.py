@@ -7,7 +7,9 @@ from functions.full_tray_generator import generate_full_tray
 
 # %% User-Adjustable Parameters
 
-diameters = [31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6]
+baseSize = 27.1
+# diameters = [31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6]
+diameters = [baseSize] * 10
 
 total_width = 189.5  # Default: 189.5
 total_depth = 66  # Default: 66.0
@@ -34,6 +36,8 @@ hinge_lock_offset = 0.4
 hinge_lock_depth = 8.3
 
 is_double_tray = True
+cutout_shape = 'square'  # 'circle' or 'square'
+min_cutout_spacing = 2.0  # Minimum gap (mm) between adjacent cutout edges
 
 base_tolerance = .55
 epsilon = 0.001
@@ -96,16 +100,18 @@ if __name__ == "__main__":
       hinge_lock_depth,
       is_double_tray,
       epsilon,
-      base_tolerance
+      base_tolerance,
+      cutout_shape=cutout_shape,
+      min_cutout_spacing=min_cutout_spacing,
   )
 
   # show(tray_compound)
 
 # %%
 if __name__ == "__main__":
-  show(tray_compound)
+  # show(tray_compound)
 
-  export_stl(tray_compound, "output/test_tray.stl")
-  export_step(tray_compound, "output/test_tray.step")
+  export_stl(tray_compound, "output/test_tray_" + str(baseSize) + "mm.stl")
+  export_step(tray_compound, "output/test_tray_" + str(baseSize) + "mm.step")
 
 # %%

@@ -4,11 +4,18 @@ import math
 # %%
 
 
+def _line_fits(line_total, n_in_line, new_diameter, max_width, tolerance, min_spacing):
+  """Check if adding new_diameter to a line still fits with minimum spacing."""
+  n = n_in_line + 1
+  return line_total + new_diameter + (n - 1) * tolerance + (n + 1) * min_spacing <= max_width
+
+
 def calculate_linear_cutout_positions(
     usable_area,
     diameters,
     tolerance,
     is_double_tray=False,
+    min_spacing=2.0,
 ):
   line_one = []
   line_two = []
@@ -25,30 +32,30 @@ def calculate_linear_cutout_positions(
   while left_idx <= right_idx:
     if take_from_left:
       diameter = diameters[left_idx]
-      if line_one_total + diameter <= max_width:
+      if _line_fits(line_one_total, len(line_one), diameter, max_width, tolerance, min_spacing):
         line_one.append(diameter)
         line_one_total += diameter
-      elif is_double_tray and line_two_total + diameter <= max_width:
+      elif is_double_tray and _line_fits(line_two_total, len(line_two), diameter, max_width, tolerance, min_spacing):
         line_two.append(diameter)
         line_two_total += diameter
       else:
         raise ValueError(
-            "Total width of bases is too wide to fit on the tray.\n"
-            + "Remove a diameter from the list and try again."
+            "Total width of bases is too wide to fit on the tray with the required spacing.\n"
+            + "Remove a diameter from the list, reduce min_cutout_spacing, or use a wider tray."
         )
       left_idx += 1
     else:
       diameter = diameters[right_idx]
-      if line_two_total + diameter <= max_width:
+      if _line_fits(line_two_total, len(line_two), diameter, max_width, tolerance, min_spacing):
         line_two.insert(0, diameter)
         line_two_total += diameter
-      elif line_one_total + diameter <= max_width:
+      elif _line_fits(line_one_total, len(line_one), diameter, max_width, tolerance, min_spacing):
         line_one.append(diameter)
         line_one_total += diameter
       else:
         raise ValueError(
-            "Total width of bases is too wide to fit on the tray.\n"
-            + "Remove a diameter from the list and try again."
+            "Total width of bases is too wide to fit on the tray with the required spacing.\n"
+            + "Remove a diameter from the list, reduce min_cutout_spacing, or use a wider tray."
         )
       right_idx -= 1
 
@@ -58,7 +65,8 @@ def calculate_linear_cutout_positions(
   x_positions = calculate_line_positions(
       usable_area,
       line_one,
-      tolerance
+      tolerance,
+      min_spacing,
   )
 
   for pos in x_positions:
@@ -69,7 +77,8 @@ def calculate_linear_cutout_positions(
     y_positions = calculate_line_positions(
         usable_area,
         line_two,
-        tolerance
+        tolerance,
+        min_spacing,
     )
 
     for pos in y_positions:
@@ -87,36 +96,26 @@ def calculate_line_positions(
     usable_area,
     diameters,
     tolerance,
+    min_spacing=2.0,
 ):
   positions = []
   diameter_total = sum(diameters)
+  n = len(diameters)
 
-  if diameter_total > usable_area['max']['x']*2:
-    raise ValueError("Total diameter exceeds usable area width")
+  if n == 0:
+    return positions
 
-  if (len(diameters) == 0):
-    pass
-  elif (len(diameters) == 1):
-    positions.append({
-        'x': 0,
-        'diameter': diameters[0],
-    })
-  else:
-    remaining_space = usable_area['max']['x'] * 2 - diameter_total
-    padding = remaining_space / len(diameters)
-    current_x = 0
+  max_width = usable_area['max']['x'] * 2
 
-    for i, diameter in enumerate(diameters):
-      pos = {'diameter': diameter}
+  # Reserve min_spacing for all n+1 gaps, distribute any extra space equally.
+  available = max_width - diameter_total - (n - 1) * tolerance - (n + 1) * min_spacing
+  gap = min_spacing + max(available, 0) / (n + 1)
 
-      if i == 0:
-        pos['x'] = -usable_area['max']['x'] + \
-            (diameters[0] + tolerance) / 2 + padding/2
-      else:
-        pos['x'] = current_x + diameters[i-1] / \
-            2 + diameter/2 + tolerance + padding
-      current_x = pos['x']
-      positions.append(pos)
+  x = -usable_area['max']['x']
+  for diameter in diameters:
+    x += gap + diameter / 2
+    positions.append({'x': x, 'diameter': diameter})
+    x += diameter / 2 + tolerance
 
   return positions
 

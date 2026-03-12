@@ -4,7 +4,7 @@ import math
 from build123d import *
 from ocp_vscode import *
 from .base_tray_generator import generate_base_tray
-from .cutout_generator import generate_cutout
+from .cutout_generator import generate_cutout, generate_square_cutout
 from .calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
 
 base_tray_storage = {}
@@ -39,12 +39,14 @@ def calculate_cutout_positions(
     tolerance,
     safety_margin,
     is_double_tray=False,
+    min_cutout_spacing=2.0,
 ):
   positions = []
   max_diameter = max(diameters)
   if max_diameter < -usable_area['min']['y']:
     positions = calculate_linear_cutout_positions(
-        usable_area, diameters, tolerance, is_double_tray)
+        usable_area, diameters, tolerance, is_double_tray,
+        min_spacing=min_cutout_spacing)
 
   return positions
 
@@ -76,6 +78,8 @@ def generate_full_tray(
     tolerance=0.55,
     hinge_diameter=27.7,
     cutout_edge_spacing=.4,
+    cutout_shape='circle',
+    min_cutout_spacing=2.0,
 ):
   storage_key = ((total_width, total_depth), is_double_tray)
 
@@ -116,12 +120,15 @@ def generate_full_tray(
   )
 
   positions = calculate_cutout_positions(
-      usable_area, diameters, tolerance, safety_margin, is_double_tray)
+      usable_area, diameters, tolerance, safety_margin, is_double_tray,
+      min_cutout_spacing=min_cutout_spacing)
 
   cutouts_list = []
 
+  cutout_fn = generate_square_cutout if cutout_shape == 'square' else generate_cutout
+
   for position in positions:
-    cutout = (generate_cutout(
+    cutout = cutout_fn(
         position['diameter'],
         tolerance,
         flap_depth,
@@ -129,7 +136,7 @@ def generate_full_tray(
         flap_center_gap,
         safety_margin[1],
         epsilon
-    ))
+    )
 
     # Rotate 180 degrees if flipped (for top edge circles)
     if position['flipped']:
