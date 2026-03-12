@@ -5,7 +5,7 @@ from ocp_vscode import *
 def generate_base_tray(
     total_width=189.5,
     total_depth=66.0,
-    floor_thickness=0.4,
+    floor_thickness=0.8,
     base_heigth=4.2,
     rail_height=8.4,
     rail_width=4.8,
@@ -17,8 +17,8 @@ def generate_base_tray(
     hinge_pin_radius=1.4,
     hinge_pin_length=3,
     bottom_chamfer=0.4,
-    hinge_lock_radius=3.5,
-    hinge_lock_offset=0.4,
+    hinge_lock_radius=2,
+    hinge_lock_offset=0.5,
     hinge_lock_depth=8.3,
     is_double_tray=False,
     epsilon=0.001,
@@ -27,6 +27,8 @@ def generate_base_tray(
   # Calculated Parameters
   center_width = total_width - 2 * rail_width
   center_depth = total_depth - 2 * (flap_depth + flap_center_gap)
+  
+  hinge_top_offset = floor_thickness- 0.4
 
   flap_width = center_width - flap_center_gap * 2
 
@@ -34,7 +36,7 @@ def generate_base_tray(
   hinge_negative_width = hinge_width + 2 * hinge_negative_space
   hinge_negative_depth = hinge_depth + hinge_negative_space
   hinge_negative_height = hinge_height + hinge_negative_space
-  hinge_pin_offset = (hinge_height - 2 * hinge_pin_radius) / 2
+  hinge_pin_offset = (hinge_height - 2 * hinge_pin_radius + hinge_top_offset) / 2
   hinge_negative_fillet_radius = (
       hinge_pin_radius + hinge_pin_offset + hinge_negative_space
   )
@@ -48,7 +50,7 @@ def generate_base_tray(
     Box(
         center_width,
         center_depth / 2,
-        base_heigth,
+        base_heigth + hinge_top_offset,
         align=(Align.CENTER, Align.MAX, Align.MIN),
     )
 
@@ -63,17 +65,17 @@ def generate_base_tray(
       # Chamfer the two top edges along Y axis
       chamfer(b.edges().filter_by(Axis.Y).sort_by(Axis.Z)[-2:], 1)
     mirror(center.part, Plane.YZ)
-
+    
   # Hinge Negative
 
   # Main box for hinge negative
-  hinge_negative_offset = (-center_width / 2, -center_depth / 2, 0)
+  hinge_negative_offset = (-center_width / 2, -center_depth / 2 - epsilon, -epsilon)
   with BuildPart() as hinge_negative:
     with Locations(hinge_negative_offset):
       b = Box(
           hinge_negative_width,
-          hinge_negative_depth,
-          hinge_negative_height,
+          hinge_negative_depth + epsilon,
+          hinge_negative_height + hinge_top_offset + epsilon,
           align=(Align.MIN, Align.MIN, Align.MIN),
       )
       fillet(
@@ -87,8 +89,8 @@ def generate_base_tray(
     with Locations(hinge_negative_offset):
       with Locations((
           -hinge_pin_length,
-          hinge_depth - 2 * hinge_pin_radius - hinge_pin_offset * 2,
-          hinge_pin_offset - hinge_negative_space,
+          hinge_depth - 2 * hinge_pin_radius - hinge_pin_offset * 2 + hinge_top_offset/2 + epsilon,
+          hinge_pin_offset - hinge_negative_space + epsilon,
       )):
         Cylinder(
             hinge_pin_radius + hinge_negative_space,
@@ -101,9 +103,9 @@ def generate_base_tray(
         )
     mirror(hinge_negative_pin.part, Plane.YZ)
 
-  # Final adjustments on Center
+  #Final adjustments on Center
 
-  # Apply hinge negative to center
+  #Apply hinge negative to center
   center.part -= hinge_negative.part
 
   # Apply chamfer to bottom-inner edge of hinge negative
@@ -144,7 +146,7 @@ def generate_base_tray(
       Box(
           flap_width,
           flap_depth,
-          base_heigth,
+          base_heigth + hinge_top_offset,
           align=(Align.CENTER, Align.MIN, Align.MIN),
       )
 
@@ -155,7 +157,7 @@ def generate_base_tray(
         Box(
             hinge_width,
             hinge_depth,
-            hinge_height,
+            hinge_height + hinge_top_offset,
             align=(Align.MIN, Align.MIN, Align.MIN),
         )
         with Locations((
@@ -171,19 +173,17 @@ def generate_base_tray(
           )
     fillet(
         hinge.edges().filter_by(Axis.X).sort_by(Axis.Y)[-2:],
-        hinge_height / 2 - epsilon,
+        (hinge_height + hinge_top_offset) / 2 - epsilon,
     )
     mirror(hinge.part, Plane.YZ)
 
   flap.part += hinge.part
 
-  # %%
-
   with BuildPart() as hinge_lock:
     with Locations((
         -(flap_width / 2 - hinge_lock_radius + hinge_lock_offset),
         -total_depth / 2,
-        base_heigth / 2,
+        (base_heigth + hinge_top_offset) / 2,
     )):
       Cylinder(
           hinge_lock_radius,
@@ -201,7 +201,7 @@ def generate_base_tray(
     with Locations((
         -(flap_width / 2 - hinge_lock_radius + hinge_lock_offset),
         -total_depth / 2,
-        base_heigth / 2,
+        (base_heigth + hinge_top_offset) / 2,
     )):
       Cylinder(
           hinge_lock_radius + hinge_negative_space,
@@ -236,14 +236,15 @@ def generate_base_tray(
       e for e in arc_candidates
       if e.length > 0.001
   ])
-  flap_hinge_arc_edges = flap_hinge_arc_edges.sort_by(Axis.Y)[-8:]
+  flap_hinge_arc_edges = flap_hinge_arc_edges.sort_by(Axis.Y)[-12:]
 
   flap_chamfer_edges = flap_bottom_chamfer_edges + flap_hinge_arc_edges
-
+  
   flap.part = chamfer(flap_chamfer_edges, 0.4 - epsilon)
 
   # Decide whether it's one or two
   flap_compound = flap.part
+  
 
   if is_double_tray:
     center.part += mirror(center.part, Plane.XZ)
@@ -251,9 +252,10 @@ def generate_base_tray(
 
   return Compound([center.part, flap_compound])
 
+# %%
 
 if __name__ == "__main__":
-  center, flap = generate_base_tray()
+  center, flap = generate_base_tray(is_double_tray=True)
 
   show(center, flap)
 # %%
