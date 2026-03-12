@@ -30,14 +30,14 @@ def calculate_usable_area(
   usable_area_min = {}
   usable_area_min['x'] = -total_width/2 + \
       rail_width + safety_margin[0]
-  usable_area_min['y'] = -total_depth/2 + safety_margin[1] + tolerance/2
+  usable_area_min['y'] = -total_depth/2 + safety_margin[1] + tolerance/2 + 0.725
   usable_area['min'] = usable_area_min
 
   usable_area_max = {}
   usable_area_max['x'] = total_width/2 - \
       rail_width - safety_margin[0]
   if is_double_tray:
-    usable_area_max['y'] = total_depth/2 - safety_margin[1] - tolerance/2
+    usable_area_max['y'] = total_depth/2 - safety_margin[1] - tolerance/2 - 0.725
   else:
     usable_area_max['y'] = 0
   usable_area['max'] = usable_area_max
@@ -68,7 +68,7 @@ def calculate_cutout_positions(
 
 def generate_full_tray(
     diameters=[],
-    safety_margin=(6.5, 0.4),
+    safety_margin=(6.5, 0.8),
     total_width=189.5,
     total_depth=66.0,
     floor_thickness=0.8,
@@ -162,14 +162,18 @@ def generate_full_tray(
 # %%
 
 
-# if __name__ == "__main__":
-#   tray_compound, cuttout_list = generate_full_tray(
-#       [50,50,50],
-#       is_double_tray=True,
-#       safety_margin=(6.5, 0.8),
-#   )
+if __name__ == "__main__":
+  tray_compound, cuttout_list = generate_full_tray(
+      [32,32,32],
+      is_double_tray=True,
+      tolerance=0.55,
+      safety_margin=(6.5, 0.8),
+  )
 
-#   show(tray_compound, cuttout_list)
+try:
+  show(tray_compound, cuttout_list)
+except:
+  pass
 
 #   export_stl(tray_compound, "../output/test_RGG_tray.stl")
 #   export_step(tray_compound, "../output/test_RGG_tray.step")

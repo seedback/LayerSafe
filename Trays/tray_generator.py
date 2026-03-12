@@ -12,7 +12,7 @@ from functions.full_tray_generator import generate_full_tray
 
 # %% User-Adjustable Parameters (Defaults)
 
-diameters = [31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6, 31.6]
+diameters = [24.7, 49.6, 39.2, 49.6, 24.7, ]
 
 total_width = 189.5  # Default: 189.5
 total_depth = 66  # Default: 66.0
@@ -177,6 +177,12 @@ if __name__ == "__main__":
     print("Tray generated successfully", flush=True)
     sys.stdout.flush()
 
+    # Display 3D model in Jupyter/VS Code (will be ignored on command line)
+    # try:
+    #   show(tray_compound)
+    # except:
+    #   pass
+
     # Ensure output directory exists
     os.makedirs("output", exist_ok=True)
 
@@ -187,6 +193,8 @@ if __name__ == "__main__":
     print(f"Exported: output/{output_filename}.step", flush=True)
     
     print(f"{output_filename} complete", flush=True)
+    
+    # show(tray_compound)
 
   except Exception as e:
     error_message = str(e)

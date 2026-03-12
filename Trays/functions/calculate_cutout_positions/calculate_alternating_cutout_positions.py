@@ -11,13 +11,13 @@ def calculate_alternating_cutout_positions(
   for diameter in diameters:
     full_diameters.append(diameter + tolerance)
   
-  if len(full_diameters) == 1:
+  if len(diameters) == 1:
     return [{
         'x': 0,
-        'diameter': full_diameters[0],
+        'diameter': diameters[0],
     }]
 
-  positions = _calculate_initial_positions(usable_area, full_diameters)
+  positions = _calculate_initial_positions(usable_area, full_diameters, tolerance)
 
   return positions
 
@@ -25,6 +25,7 @@ def calculate_alternating_cutout_positions(
 def _calculate_initial_positions(
     usable_area,
     diameters,
+    tolerance
 ):
   positions = []
   usable_area_total = {'x': -usable_area['min']['x'] + usable_area['max']
@@ -34,7 +35,7 @@ def _calculate_initial_positions(
       positions.append({
           'x': usable_area['min']['x'] + diameter/2,
           'y': usable_area['min']['y'] + diameter/2,
-          'diameter': diameters[0],
+          'diameter': diameters[0] - tolerance,
           'flipped': False,
       })
     else:
@@ -44,7 +45,7 @@ def _calculate_initial_positions(
       positions.append({
           'x': last_pos['x'] + offset,
           'y': usable_area['min']['y'] + diameter/2 if last_pos['flipped'] else usable_area['max']['y'] - diameter/2,
-          'diameter': diameter,
+          'diameter': diameter - tolerance,
           'flipped': not last_pos['flipped'],
       })
 
