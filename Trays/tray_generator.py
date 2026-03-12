@@ -191,9 +191,6 @@ if __name__ == "__main__":
   except Exception as e:
     print(f"Error: {type(e).__name__}: {e}", flush=True)
     sys.stdout.flush()
-    import traceback
-    traceback.print_exc()
-    sys.stdout.flush()
     exit(1)
 
 # %%
