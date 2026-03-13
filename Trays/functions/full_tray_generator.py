@@ -163,17 +163,17 @@ def generate_full_tray(
 
 
 if __name__ == "__main__":
-  tray_compound, cuttout_list = generate_full_tray(
+  tray_compound, cutout_list = generate_full_tray(
       [32,32,32],
       is_double_tray=True,
       tolerance=0.55,
       safety_margin=(6.5, 0.8),
   )
 
-try:
-  show(tray_compound, cuttout_list)
-except:
-  pass
+  try:
+    show(tray_compound, cutout_list)
+  except:
+    pass
 
 #   export_stl(tray_compound, "../output/test_RGG_tray.stl")
 #   export_step(tray_compound, "../output/test_RGG_tray.step")

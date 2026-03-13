@@ -14,7 +14,7 @@ def generate_base_tray(
     hinge_width=2.8,
     hinge_height=3.6,
     hinge_depth=17.5,
-    hinge_pin_radius=1.4,
+    hinge_pin_diameter=1.4,
     hinge_pin_length=3,
     bottom_chamfer=0.4,
     hinge_lock_radius=2,
@@ -37,9 +37,9 @@ def generate_base_tray(
   hinge_negative_depth = hinge_depth + hinge_negative_space
   hinge_negative_height = hinge_height + hinge_negative_space
   hinge_pin_offset = (
-      hinge_height - 2 * hinge_pin_radius + hinge_top_offset) / 2
+      hinge_height - 2 * hinge_pin_diameter + hinge_top_offset) / 2
   hinge_negative_fillet_radius = (
-      hinge_pin_radius + hinge_pin_offset + hinge_negative_space
+      hinge_pin_diameter + hinge_pin_offset + hinge_negative_space
   )
 
   hinge_depth += hinge_negative_space
@@ -91,12 +91,12 @@ def generate_base_tray(
     with Locations(hinge_negative_offset):
       with Locations((
           -hinge_pin_length,
-          hinge_depth - 2 * hinge_pin_radius -
+          hinge_depth - 2 * hinge_pin_diameter -
           hinge_pin_offset * 2 + hinge_top_offset/2 + epsilon,
           hinge_pin_offset - hinge_negative_space + epsilon,
       )):
         Cylinder(
-            hinge_pin_radius + hinge_negative_space,
+            hinge_pin_diameter + hinge_negative_space,
             (
                 hinge_pin_length * 2 + hinge_width +
                 2 * hinge_negative_space
@@ -173,11 +173,11 @@ def generate_base_tray(
         )
         with Locations((
             -hinge_pin_length,
-            hinge_depth - hinge_pin_radius * 2 - hinge_pin_offset,
+            hinge_depth - hinge_pin_diameter * 2 - hinge_pin_offset,
             hinge_pin_offset,
         )):
           Cylinder(
-              hinge_pin_radius,
+              hinge_pin_diameter,
               hinge_pin_length * 2 + hinge_width,
               rotation=(0, 90, 0),
               align=(Align.MAX, Align.MIN, Align.MIN),
@@ -269,11 +269,11 @@ def generate_base_tray(
 # %%
 
 
-# if __name__ == "__main__":
-#   center, flap = generate_base_tray(is_double_tray=True)
+if __name__ == "__main__":
+  center, flap = generate_base_tray(is_double_tray=True)
 
-# try:
-#   show(center, flap)
-# except:
-#   pass
+try:
+  show(center, flap)
+except:
+  pass
 # %%

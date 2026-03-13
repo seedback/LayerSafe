@@ -18,14 +18,14 @@ def generate_cutout(
 ):
   with BuildPart() as normal_base:
     with Locations((0, 0, -epsilon)):
-      with BuildSketch():
-        c = Circle(base_diameter/2 + tolerance/2,
+      with BuildSketch() as c:
+        Circle(base_diameter/2 + tolerance/2,
                   align=(Align.CENTER, Align.CENTER))
       extrude(amount=5, taper=12.5)
       # Add the slide path for the base
       cross_section_result = section(normal_base.part, Plane.XZ)
       e = extrude(cross_section_result, (base_diameter/2 + tolerance/2) -
-                  flap_depth - flap_center_gap + epsilon + 1.8)
+                  flap_depth - flap_center_gap + epsilon + 2)
 
   with BuildPart() as lip_adjustor_base:
     with Locations((0, -base_diameter*0.75, -epsilon*2)):
@@ -33,10 +33,10 @@ def generate_cutout(
 
   # Get the radius cut out of the adjustor
   hinge_radius = hinge_diameter/2
-  delta_x = hinge_radius - math.sqrt(hinge_radius*hinge_radius - 1.8*1.8) -1
+  delta_x = hinge_radius - math.sqrt(hinge_radius*hinge_radius - 2*2)
   with BuildPart() as lip_adjustor_edge:
     with BuildSketch(Plane.YZ):
-      with Locations((-base_diameter/2 - tolerance/2 + delta_x - hinge_radius, 1.8)):
+      with Locations((-base_diameter/2 - tolerance/2 + delta_x - hinge_radius, 2)):
         Circle(hinge_radius, align=(Align.CENTER, Align.CENTER))
     revolve_axis = Axis(origin=(0, -tolerance/2 - epsilon, 0), direction=(0, 0, 1))
     revolve(axis=revolve_axis)
@@ -68,7 +68,7 @@ def generate_cutout(
   return_compound = Compound([normal_base.part])
 
   # try:
-  #     show(return_compound, flattener, normal_base, lip_adjustor_base, lip_adjustor_edge, lip_box, alphas=[1, 0.5, 1, 0.5, 0.5])
+  #     show(return_compound, flattener, normal_base, lip_adjustor_base, lip_adjustor_edge, lip_box, c, alphas=[1, 0.5, 1, 0.5, 0.5])
   # except:
   #   pass
 
@@ -82,8 +82,8 @@ def generate_cutout(
 if __name__ == "__main__":
   cutout = generate_cutout(50, tolerance=0.55)
 
-# try:
-#   show(cutout)
-# except:
-#   pass
+try:
+  show(cutout)
+except:
+  pass
 # %%

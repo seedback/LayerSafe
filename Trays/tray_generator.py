@@ -177,11 +177,10 @@ if __name__ == "__main__":
     print("Tray generated successfully", flush=True)
     sys.stdout.flush()
 
-    # Display 3D model in Jupyter/VS Code (will be ignored on command line)
-    # try:
-    #   show(tray_compound)
-    # except:
-    #   pass
+    try:
+      show(tray_compound)
+    except:
+      pass
 
     # Ensure output directory exists
     os.makedirs("output", exist_ok=True)
