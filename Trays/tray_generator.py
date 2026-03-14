@@ -114,6 +114,11 @@ if __name__ == "__main__":
           default=None,
           help=f"Tolerance for base fit (default: {base_tolerance})"
       )
+      parser.add_argument(
+          "--single-sided",
+          action="store_true",
+          help="Generate a single-sided tray (default: double-sided)"
+      )
       
       args = parser.parse_args()
       
@@ -122,6 +127,7 @@ if __name__ == "__main__":
       total_width = args.width
       total_depth = args.depth
       custom_output = args.output
+      is_double_tray = not args.single_sided
       
       # Handle safety margins - use provided values or keep defaults
       margin_x = args.safety_margin_x if args.safety_margin_x is not None else safety_margin[0]
