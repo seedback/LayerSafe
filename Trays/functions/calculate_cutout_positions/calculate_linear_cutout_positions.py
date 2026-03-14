@@ -13,7 +13,7 @@ def calculate_linear_cutout_positions(
   full_diameters = []
   for diameter in diameters:
     full_diameters.append(diameter + tolerance)
-  
+
   line_one = []
   line_two = []
 

@@ -10,14 +10,14 @@ def calculate_alternating_cutout_positions(
   full_diameters = []
   for diameter in diameters:
     full_diameters.append(diameter + tolerance)
-  
+
   if len(diameters) == 1:
     return [{
         'x': 0,
         'diameter': diameters[0],
     }]
 
-  positions = _calculate_initial_positions(usable_area, full_diameters, tolerance)
+  positions = _calculate_initial_positions(usable_area, diameters, tolerance)
 
   return positions
 
@@ -28,24 +28,27 @@ def _calculate_initial_positions(
     tolerance
 ):
   positions = []
-  usable_area_total = {'x': -usable_area['min']['x'] + usable_area['max']
-                       ['x'], 'y': -usable_area['min']['y'] + usable_area['max']['y']}
+  usable_area_total = {
+      'x': -usable_area['min']['x'] + usable_area['max']['x'],
+      'y': -usable_area['min']['y'] + usable_area['max']['y']}
   for i, diameter in enumerate(diameters):
+    print(diameter)
     if i == 0:
       positions.append({
           'x': usable_area['min']['x'] + diameter/2,
           'y': usable_area['min']['y'] + diameter/2,
-          'diameter': diameters[0] - tolerance,
+          'diameter': diameters[0],
           'flipped': False,
       })
     else:
       last_pos = positions[-1]
-      offset = _side_from_hyp(last_pos['diameter']/2 + diameter/2,
-                              usable_area_total['y'] - last_pos['diameter']/2 - diameter/2)
+      offset = _side_from_hyp(
+          last_pos['diameter'] / 2 + diameter / 2, usable_area_total['y'] -
+          last_pos['diameter'] / 2 - diameter / 2)
       positions.append({
           'x': last_pos['x'] + offset,
           'y': usable_area['min']['y'] + diameter/2 if last_pos['flipped'] else usable_area['max']['y'] - diameter/2,
-          'diameter': diameter - tolerance,
+          'diameter': diameter,
           'flipped': not last_pos['flipped'],
       })
 
@@ -58,7 +61,7 @@ def _calculate_initial_positions(
   edge_tolerance = 0.1  # Allow 0.1mm tolerance for floating-point precision
   gap_tolerance = 0.4   # Minimum 0.4mm gap between circles
   has_error = False
-  
+
   for i, pos in enumerate(positions):
     # Check boundaries (allow small tolerance for floating-point precision)
     left_edge = pos['x'] - pos['diameter'] / 2
@@ -66,10 +69,10 @@ def _calculate_initial_positions(
     top_edge = pos['y'] + pos['diameter'] / 2
     bottom_edge = pos['y'] - pos['diameter'] / 2
 
-    if (left_edge < usable_area['min']['x'] - edge_tolerance or 
+    if (left_edge < usable_area['min']['x'] - edge_tolerance or
         right_edge > usable_area['max']['x'] + edge_tolerance or
-        top_edge > usable_area['max']['y'] + edge_tolerance or 
-        bottom_edge < usable_area['min']['y'] - edge_tolerance):
+        top_edge > usable_area['max']['y'] + edge_tolerance or
+            bottom_edge < usable_area['min']['y'] - edge_tolerance):
       break
 
   # Check for overlaps (minimum 0.4mm gap required)

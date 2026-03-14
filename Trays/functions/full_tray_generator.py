@@ -30,14 +30,14 @@ def calculate_usable_area(
   usable_area_min = {}
   usable_area_min['x'] = -total_width/2 + \
       rail_width + safety_margin[0]
-  usable_area_min['y'] = -total_depth/2 + safety_margin[1] + tolerance/2 + 0.725
+  usable_area_min['y'] = -total_depth/2 + safety_margin[1] + tolerance/2
   usable_area['min'] = usable_area_min
 
   usable_area_max = {}
   usable_area_max['x'] = total_width/2 - \
       rail_width - safety_margin[0]
   if is_double_tray:
-    usable_area_max['y'] = total_depth/2 - safety_margin[1] - tolerance/2 - 0.725
+    usable_area_max['y'] = total_depth/2 - safety_margin[1] - tolerance/2
   else:
     usable_area_max['y'] = 0
   usable_area['max'] = usable_area_max
@@ -55,11 +55,13 @@ def calculate_cutout_positions(
     return []
   positions = []
   max_diameter = max(diameters)
-  if max_diameter < -usable_area['min']['y'] or not is_double_tray:
+  if max_diameter <= -usable_area['min']['y'] or not is_double_tray:
+    print("linear")
     positions = calculate_linear_cutout_positions(
         usable_area, diameters, tolerance, is_double_tray)
   else:
-    positions = calculate_alternating_cutout_positions(usable_area, diameters, tolerance)
+    positions = calculate_alternating_cutout_positions(
+        usable_area, diameters, tolerance)
 
   return positions
 
@@ -90,7 +92,7 @@ def generate_full_tray(
     epsilon=0.001,
     tolerance=0.55,
     hinge_diameter=27.7,
-):  
+):
   storage_key = ((total_width, total_depth), is_double_tray)
 
   # Create a base tray if one of the given dimmension doesn't exist
@@ -164,16 +166,12 @@ def generate_full_tray(
 
 if __name__ == "__main__":
   tray_compound, cutout_list = generate_full_tray(
-      [32,32,32],
+      [24.7, 49.5, 24.7, 49.5, 24.7,],
       is_double_tray=True,
-      tolerance=0.55,
-      safety_margin=(6.5, 0.8),
+      safety_margin=(6.5, 0.4)
   )
 
-  try:
-    show(tray_compound, cutout_list)
-  except:
-    pass
+  show(tray_compound, cutout_list)
 
 #   export_stl(tray_compound, "../output/test_RGG_tray.stl")
 #   export_step(tray_compound, "../output/test_RGG_tray.step")

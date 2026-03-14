@@ -9,7 +9,6 @@ from collections import Counter
 from functions.full_tray_generator import generate_full_tray
 
 
-
 # %% User-Adjustable Parameters (Defaults)
 
 diameters = [24.7, 49.6, 39.2, 49.6, 24.7, ]
@@ -50,18 +49,19 @@ custom_filename = "output/test_tray"
 if __name__ == "__main__":
   import sys
   import io
-  
+
   # Force unbuffered output (only works on command line, skip in Jupyter)
   try:
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8', line_buffering=True)
+    sys.stdout = io.TextIOWrapper(
+        sys.stdout.buffer, encoding='utf-8', line_buffering=True)
   except AttributeError:
     # In Jupyter, sys.stdout doesn't have a 'buffer' attribute - that's fine, skip it
     pass
-  
+
   try:
     # Detect if running in Jupyter/IPython
     is_jupyter = 'ipykernel' in sys.argv[0] or 'jupyter' in sys.argv[0].lower()
-    
+
     # Check if running from command line (has diameters argument) and NOT in Jupyter
     if len(sys.argv) > 1 and not is_jupyter:
       parser = argparse.ArgumentParser(
@@ -119,40 +119,41 @@ if __name__ == "__main__":
           action="store_true",
           help="Generate a single-sided tray (default: double-sided)"
       )
-      
+
       args = parser.parse_args()
-      
+
       # Override defaults with command line arguments
       diameters = args.diameters
       total_width = args.width
       total_depth = args.depth
       custom_output = args.output
       is_double_tray = not args.single_sided
-      
+
       # Handle safety margins - use provided values or keep defaults
       margin_x = args.safety_margin_x if args.safety_margin_x is not None else safety_margin[0]
       margin_y = args.safety_margin_y if args.safety_margin_y is not None else safety_margin[1]
       safety_margin = (margin_x, margin_y)
-      
+
       # Handle tolerance - use provided value or keep default
       if args.tolerance is not None:
         base_tolerance = args.tolerance
     else:
       # No arguments - use defaults
       custom_output = None
-      
+
     # Create a summary of diameters (count how many of each size)
     diameter_count = Counter(diameters)
     diameter_summary = sorted(diameter_count.items())
-    
+
     # Generate filename from diameter summary if not provided
     if custom_output:
       output_filename = custom_output
     else:
       # Create filename like "tray_31.6x10_25.4x5" from the diameter summary
-      filename_parts = [f"{count}x{diameter}mm" for diameter, count in diameter_summary]
+      filename_parts = [
+          f"{count}x{diameter}mm" for diameter, count in diameter_summary]
       output_filename = f"tray_{'_'.join(filename_parts)}"
-    
+
     print("Generating", output_filename, flush=True)
     sys.stdout.flush()
 
@@ -196,28 +197,47 @@ if __name__ == "__main__":
 
     export_step(tray_compound, f"output/{output_filename}.step")
     print(f"Exported: output/{output_filename}.step", flush=True)
-    
+
     print(f"{output_filename} complete", flush=True)
-    
+
     # show(tray_compound)
 
   except Exception as e:
     error_message = str(e)
-    
+
     # ANSI color codes for red text
     RED = "\033[91m"
     RESET = "\033[0m"
-    
+
     # Check for math domain error - usually caused by mixing large and small diameter bases
     if "math domain error" in error_message.lower():
       print(f"{RED}Error: Cannot fit base configuration.{RESET}", flush=True)
-      print(f"{RED}Mixing large base diameters (32mm+) with small base diameters (<32mm) requires{RESET}", flush=True)
-      print(f"{RED}alternating them in the layout. Multiple small bases in a row causes geometric conflicts.{RESET}", flush=True)
-      print(f"{RED}Try: Distribute smaller diameters throughout with larger ones in between.{RESET}", flush=True)
-      print(f"{RED}Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]{RESET}", flush=True)
+      print(
+          f"{RED}Mixing large base diameters (32mm+) with small base diameters (<32mm) requires{RESET}",
+          flush=True)
+      print(
+          f"{RED}alternating them in the layout. Multiple small bases in a row causes geometric conflicts.{RESET}",
+          flush=True)
+      print(
+          f"{RED}Try: Distribute smaller diameters throughout with larger ones in between.{RESET}",
+          flush=True)
+      print(
+          f"{RED}Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]{RESET}",
+          flush=True)
+    if "keyerror: 'flipped'" in error_message.lower():
+      print(
+          f"{RED}Error: System mirror the geometry of the base cutout for double sided trays.{RESET}",
+          flush=True)
+      print(
+          f"{RED}This usually occurs when only one diameter is provided.{RESET}",
+          flush=True)
+      print(f"{RED}Try setting the flag \"--single-sided\".{RESET}", flush=True)
+      print(
+          f"{RED}(Note: You may then need to set --depth manually. Try --depth 132 for standard size.){RESET}",
+          flush=True)
     else:
       print(f"{RED}Error: {type(e).__name__}: {e}{RESET}", flush=True)
-    
+
     sys.stdout.flush()
     exit(1)
 
