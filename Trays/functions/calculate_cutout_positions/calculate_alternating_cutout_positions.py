@@ -16,6 +16,8 @@ def calculate_alternating_cutout_positions(
     return [{
         'x': 0,
         'diameter': diameters[0],
+        'y': usable_area['min']['y'] + diameter/2 - edge_offsets[0],
+        'flipped': False,
     }]
 
   positions = _calculate_initial_positions(usable_area, diameters, edge_offsets, tolerance)
@@ -34,10 +36,11 @@ def _calculate_initial_positions(
       'x': -usable_area['min']['x'] + usable_area['max']['x'],
       'y': -usable_area['min']['y'] + usable_area['max']['y']}
   for i, diameter in enumerate(diameters):
+    print(diameter, edge_offsets[i])
     if i == 0:
       positions.append({
           'x': usable_area['min']['x'] + diameter/2,
-          'y': usable_area['min']['y'] + diameter/2,
+          'y': usable_area['min']['y'] + diameter/2 - edge_offsets[i],
           'diameter': diameters[0],
           'flipped': False,
       })
@@ -46,25 +49,18 @@ def _calculate_initial_positions(
       offset = _side_from_hyp(
           last_pos['diameter'] / 2 + diameter / 2, usable_area_total['y'] -
           last_pos['diameter'] / 2 - diameter / 2)
+      is_flipped = not last_pos['flipped']
       positions.append({
           'x': last_pos['x'] + offset,
-          'y': usable_area['min']['y'] + diameter/2 if last_pos['flipped'] else usable_area['max']['y'] - diameter/2,
+          'y': (usable_area['max']['y'] - diameter/2 + edge_offsets[i]) if is_flipped else (usable_area['min']['y'] + diameter/2 + edge_offsets[i]),
           'diameter': diameter,
-          'flipped': not last_pos['flipped'],
+          'flipped': is_flipped,
       })
 
   for i in range(100):
     positions, error = _redistribution_pass(usable_area, positions)
     if error < 0.01:
       break
-
-  # Apply edge_offsets to y positions
-  for i, pos in enumerate(positions):
-    if edge_offsets and i < len(edge_offsets):
-      if pos['flipped']:
-        pos['y'] -= edge_offsets[i]
-      else:
-        pos['y'] += edge_offsets[i]
 
 # Validate: check for overlaps and boundary violations
   edge_tolerance = 0.1  # Allow 0.1mm tolerance for floating-point precision

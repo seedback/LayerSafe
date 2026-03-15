@@ -172,19 +172,19 @@ def generate_full_tray(
 
 
 if __name__ == "__main__":
+  # tray_compound, cutout_list = generate_full_tray(
+  #     [49.6],
+  #     is_double_tray=False,
+  #     total_depth=110,
+  #     total_width=80,
+  #     edge_offsets=[.1]
+  # )
+  
   tray_compound, cutout_list = generate_full_tray(
       [49.6],
-      is_double_tray=False,
-      total_depth=104,
-      total_width=72.6,
-      edge_offsets=[.1]
+      is_double_tray=True,
+      edge_offsets=[5, 5]
   )
-  
-  # tray_compound, cutout_list = generate_full_tray(
-  #     [25,25,25,25,25,25],
-  #     is_double_tray=False,
-  #     edge_offsets=[3]
-  # )
 
   show(tray_compound, cutout_list)
 

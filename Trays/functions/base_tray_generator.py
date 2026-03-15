@@ -271,9 +271,5 @@ def generate_base_tray(
 
 if __name__ == "__main__":
   center, flap = generate_base_tray(is_double_tray=True)
-
-try:
   show(center, flap)
-except:
-  pass
 # %%

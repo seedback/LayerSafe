@@ -11,7 +11,7 @@ def generate_cutout(
     base_diameter,
     tolerance=0.55,
     flap_depth=11.8,
-    hinge_diameter=27.7,
+    hinge_diameter=27.5,
     flap_center_gap=0.2,
     cutout_edge_spacing=.8,
     lip_offset = 0,
@@ -45,7 +45,7 @@ def generate_cutout(
       Cylinder(base_diameter, 6, align=(Align.CENTER, Align.CENTER))
 
   # Get the radius cut out of the adjustor
-  hinge_radius = hinge_diameter/2
+  hinge_radius = hinge_diameter/2 - cutout_edge_spacing
   delta_x = hinge_radius - \
       math.sqrt(hinge_radius*hinge_radius - math.pow(2 + epsilon, 2))
   
@@ -108,6 +108,6 @@ def generate_cutout(
 # %%
 
 if __name__ == "__main__":
-  cutout = generate_cutout(32, tolerance=0.55, lip_offset=0)
+  cutout = generate_cutout(49.6, tolerance=0.55, lip_offset=0.1)
   show(cutout)
 # %%
