@@ -12,12 +12,13 @@ from functions.full_tray_generator import generate_full_tray
 # %% User-Adjustable Parameters (Defaults)
 
 diameters = [24.7, 49.6, 39.2, 49.6, 24.7, ]
+edge_offsets = []
 
 total_width = 189.5  # Default: 189.5
 total_depth = 66  # Default: 66.0
 safety_margin = (6.5, 0.8)
 
-floor_thickness = 0.4
+floor_thickness = 0.8
 base_heigth = 4.2
 rail_height = 8.4
 rail_width = 4.8
@@ -36,6 +37,7 @@ bottom_chamfer = 0.4
 hinge_lock_radius = 3.5
 hinge_lock_offset = 0.4
 hinge_lock_depth = 8.3
+hinge_diameter = 27.7
 
 is_double_tray = True
 
@@ -115,6 +117,13 @@ if __name__ == "__main__":
           help=f"Tolerance for base fit (default: {base_tolerance})"
       )
       parser.add_argument(
+          "--edge-offsets",
+          type=float,
+          nargs="*",
+          default=None,
+          help="Space-separated edge offsets for each base (e.g., 0.5 0.5 0.5)"
+      )
+      parser.add_argument(
           "--single-sided",
           action="store_true",
           help="Generate a single-sided tray (default: double-sided)"
@@ -137,6 +146,10 @@ if __name__ == "__main__":
       # Handle tolerance - use provided value or keep default
       if args.tolerance is not None:
         base_tolerance = args.tolerance
+
+      # Handle edge offsets - use provided values or keep default
+      if args.edge_offsets is not None:
+        edge_offsets = args.edge_offsets
     else:
       # No arguments - use defaults
       custom_output = None
@@ -177,9 +190,11 @@ if __name__ == "__main__":
         hinge_lock_radius,
         hinge_lock_offset,
         hinge_lock_depth,
+        edge_offsets,
         is_double_tray,
         epsilon,
-        base_tolerance
+        base_tolerance,
+        hinge_diameter
     )
     print("Tray generated successfully", flush=True)
     sys.stdout.flush()

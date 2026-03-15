@@ -5,6 +5,7 @@ import math
 def calculate_alternating_cutout_positions(
     usable_area,
     diameters,
+    edge_offsets,
     tolerance
 ):
   full_diameters = []
@@ -17,7 +18,7 @@ def calculate_alternating_cutout_positions(
         'diameter': diameters[0],
     }]
 
-  positions = _calculate_initial_positions(usable_area, diameters, tolerance)
+  positions = _calculate_initial_positions(usable_area, diameters, edge_offsets, tolerance)
 
   return positions
 
@@ -25,6 +26,7 @@ def calculate_alternating_cutout_positions(
 def _calculate_initial_positions(
     usable_area,
     diameters,
+    edge_offsets,
     tolerance
 ):
   positions = []
@@ -32,7 +34,6 @@ def _calculate_initial_positions(
       'x': -usable_area['min']['x'] + usable_area['max']['x'],
       'y': -usable_area['min']['y'] + usable_area['max']['y']}
   for i, diameter in enumerate(diameters):
-    print(diameter)
     if i == 0:
       positions.append({
           'x': usable_area['min']['x'] + diameter/2,
@@ -56,6 +57,14 @@ def _calculate_initial_positions(
     positions, error = _redistribution_pass(usable_area, positions)
     if error < 0.01:
       break
+
+  # Apply edge_offsets to y positions
+  for i, pos in enumerate(positions):
+    if edge_offsets and i < len(edge_offsets):
+      if pos['flipped']:
+        pos['y'] -= edge_offsets[i]
+      else:
+        pos['y'] += edge_offsets[i]
 
 # Validate: check for overlaps and boundary violations
   edge_tolerance = 0.1  # Allow 0.1mm tolerance for floating-point precision

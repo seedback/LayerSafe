@@ -7,6 +7,7 @@ import math
 def calculate_linear_cutout_positions(
     usable_area,
     diameters,
+    edge_offsets,
     tolerance,
     is_double_tray=False,
 ):
@@ -15,7 +16,9 @@ def calculate_linear_cutout_positions(
     full_diameters.append(diameter + tolerance)
 
   line_one = []
+  line_one_indices = []
   line_two = []
+  line_two_indices = []
 
   max_width = usable_area['max']['x'] * 2
   line_one_total = 0
@@ -31,9 +34,11 @@ def calculate_linear_cutout_positions(
       diameter = diameters[left_idx]
       if line_one_total + diameter <= max_width:
         line_one.append(diameter)
+        line_one_indices.append(left_idx)
         line_one_total += diameter
       elif is_double_tray and line_two_total + diameter <= max_width:
         line_two.append(diameter)
+        line_two_indices.append(left_idx)
         line_two_total += diameter
       else:
         raise ValueError(
@@ -45,9 +50,11 @@ def calculate_linear_cutout_positions(
       diameter = diameters[right_idx]
       if line_two_total + diameter <= max_width:
         line_two.insert(0, diameter)
+        line_two_indices.insert(0, right_idx)
         line_two_total += diameter
       elif line_one_total + diameter <= max_width:
         line_one.append(diameter)
+        line_one_indices.append(right_idx)
         line_one_total += diameter
       else:
         raise ValueError(
@@ -64,8 +71,10 @@ def calculate_linear_cutout_positions(
       line_one
   )
 
-  for pos in x_positions:
+  for i, pos in enumerate(x_positions):
     pos['y'] = usable_area['min']['y'] + (pos['diameter']) / 2
+    if edge_offsets and i < len(edge_offsets):
+      pos['y'] -= edge_offsets[line_one_indices[i]]
     pos['flipped'] = False
 
   if is_double_tray:
@@ -74,8 +83,10 @@ def calculate_linear_cutout_positions(
         line_two,
     )
 
-    for pos in y_positions:
+    for i, pos in enumerate(y_positions):
       pos['y'] = usable_area['max']['y'] - (pos['diameter']) / 2
+      if edge_offsets and i < len(edge_offsets):
+        pos['y'] += edge_offsets[line_two_indices[i]]
       pos['flipped'] = True
 
     positions = x_positions + y_positions
