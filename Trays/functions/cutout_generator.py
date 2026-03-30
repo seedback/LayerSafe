@@ -14,6 +14,7 @@ def generate_cutout(
     hinge_diameter=27.5,
     flap_center_gap=0.2,
     cutout_edge_spacing=.8,
+    floor_thickness = .8,
     lip_offset = 0,
     epsilon=0.001
 ):
@@ -47,11 +48,11 @@ def generate_cutout(
   # Get the radius cut out of the adjustor
   hinge_radius = hinge_diameter/2 - cutout_edge_spacing
   delta_x = hinge_radius - \
-      math.sqrt(hinge_radius*hinge_radius - math.pow(2 + epsilon, 2))
+      math.sqrt(math.pow(hinge_radius, 2) - math.pow(2 - floor_thickness + epsilon, 2))
   
   with BuildPart() as lip_adjustor_edge:
     with BuildSketch(Plane.YZ):
-      with Locations(( -base_diameter/2 - tolerance/2 + delta_x - hinge_radius, 2)):
+      with Locations(( -base_diameter/2 - tolerance/2 + delta_x - hinge_radius, 2 - floor_thickness)):
         Circle(hinge_radius, align=(Align.CENTER, Align.CENTER))
     revolve_axis = Axis(
         origin=(0, -tolerance/2  - epsilon, 0), direction=(0, 0, 1))
@@ -108,6 +109,6 @@ def generate_cutout(
 # %%
 
 if __name__ == "__main__":
-  cutout = generate_cutout(49.6, tolerance=0.55, lip_offset=0.1)
+  cutout = generate_cutout(49.6, tolerance=0.55, lip_offset=0.1, floor_thickness=-1)
   show(cutout)
 # %%
