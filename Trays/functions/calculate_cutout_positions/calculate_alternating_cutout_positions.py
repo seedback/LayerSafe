@@ -36,7 +36,6 @@ def _calculate_initial_positions(
       'x': -usable_area['min']['x'] + usable_area['max']['x'],
       'y': -usable_area['min']['y'] + usable_area['max']['y']}
   for i, diameter in enumerate(diameters):
-    print(diameter, edge_offsets[i])
     if i == 0:
       positions.append({
           'x': usable_area['min']['x'] + diameter/2,
