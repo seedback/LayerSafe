@@ -336,6 +336,10 @@ paket-files/
 __pycache__/
 *.pyc
 
+# Python virtual environment
+venv/
+path/
+
 # Cake - Uncomment if you are using it
 # tools/**
 # !tools/packages.config
@@ -405,3 +409,6 @@ FodyWeavers.xsd
 
 # JetBrains Rider
 *.sln.iml
+
+# output
+**/output/**

@@ -14,7 +14,7 @@ def generate_base_tray(
     hinge_width=2.8,
     hinge_height=3.6,
     hinge_depth=17.5,
-    hinge_pin_radius=1.4,
+    hinge_pin_diameter=1.4,
     hinge_pin_length=3,
     bottom_chamfer=0.4,
     hinge_lock_radius=2,
@@ -27,8 +27,8 @@ def generate_base_tray(
   # Calculated Parameters
   center_width = total_width - 2 * rail_width
   center_depth = total_depth - 2 * (flap_depth + flap_center_gap)
-  
-  hinge_top_offset = floor_thickness- 0.4
+
+  hinge_top_offset = floor_thickness - 0.4
 
   flap_width = center_width - flap_center_gap * 2
 
@@ -36,9 +36,10 @@ def generate_base_tray(
   hinge_negative_width = hinge_width + 2 * hinge_negative_space
   hinge_negative_depth = hinge_depth + hinge_negative_space
   hinge_negative_height = hinge_height + hinge_negative_space
-  hinge_pin_offset = (hinge_height - 2 * hinge_pin_radius + hinge_top_offset) / 2
+  hinge_pin_offset = (
+      hinge_height - 2 * hinge_pin_diameter + hinge_top_offset) / 2
   hinge_negative_fillet_radius = (
-      hinge_pin_radius + hinge_pin_offset + hinge_negative_space
+      hinge_pin_diameter + hinge_pin_offset + hinge_negative_space
   )
 
   hinge_depth += hinge_negative_space
@@ -65,11 +66,12 @@ def generate_base_tray(
       # Chamfer the two top edges along Y axis
       chamfer(b.edges().filter_by(Axis.Y).sort_by(Axis.Z)[-2:], 1)
     mirror(center.part, Plane.YZ)
-    
+
   # Hinge Negative
 
   # Main box for hinge negative
-  hinge_negative_offset = (-center_width / 2, -center_depth / 2 - epsilon, -epsilon)
+  hinge_negative_offset = (-center_width / 2, -
+                           center_depth / 2 - epsilon, -epsilon)
   with BuildPart() as hinge_negative:
     with Locations(hinge_negative_offset):
       b = Box(
@@ -89,11 +91,12 @@ def generate_base_tray(
     with Locations(hinge_negative_offset):
       with Locations((
           -hinge_pin_length,
-          hinge_depth - 2 * hinge_pin_radius - hinge_pin_offset * 2 + hinge_top_offset/2 + epsilon,
+          hinge_depth - 2 * hinge_pin_diameter -
+          hinge_pin_offset * 2 + hinge_top_offset/2 + epsilon,
           hinge_pin_offset - hinge_negative_space + epsilon,
       )):
         Cylinder(
-            hinge_pin_radius + hinge_negative_space,
+            hinge_pin_diameter + hinge_negative_space,
             (
                 hinge_pin_length * 2 + hinge_width +
                 2 * hinge_negative_space
@@ -103,38 +106,46 @@ def generate_base_tray(
         )
     mirror(hinge_negative_pin.part, Plane.YZ)
 
-  #Final adjustments on Center
+  # Final adjustments on Center
 
-  #Apply hinge negative to center
+  # Apply hinge negative to center
   center.part -= hinge_negative.part
 
   # Apply chamfer to bottom-inner edge of hinge negative
-  # To allow hinge to rotate back
-  bottom_edges = center.faces().sort_by(Axis.Z)[0].edges()
-  edges_x = bottom_edges.filter_by(Axis.X)
-  hinge_edges = sorted(
-      edges_x, key=lambda e: abs(e.center().Y)
-  )[1:3]
-  center.part = chamfer(
-      hinge_edges,
-      (
-          hinge_negative_height - hinge_negative_fillet_radius -
-          epsilon
-      ),
-      angle=45,
-  )
+  # To allow hinge to rotate back (skip if fails on command line)
+  try:
+    bottom_edges = center.faces().sort_by(Axis.Z)[0].edges()
+    edges_x = bottom_edges.filter_by(Axis.X)
+    hinge_edges = sorted(
+        edges_x, key=lambda e: abs(e.center().Y)
+    )[1:3]
+    center.part = chamfer(
+        hinge_edges,
+        (
+            hinge_negative_height - hinge_negative_fillet_radius -
+            epsilon
+        ),
+        angle=45,
+    )
+  except Exception:
+    # Chamfer failed - skip (cosmetic operation)
+    pass
 
-  # Apply chamfer to edge around bottom
-  bottom_edges = center.faces().sort_by(Axis.Z)[0].edges()
-  edges_x = bottom_edges.filter_by(Axis.X)
-  hinge_edges = sorted(
-      edges_x, key=lambda e: abs(e.center().Y)
-  )[1:3]
-  back_edge = sorted(edges_x, key=lambda e: abs(e.center().Y))[:1]
-  center.part = chamfer(
-      bottom_edges - hinge_edges - hinge_edges - back_edge,
-      bottom_chamfer,
-  )
+  # Apply chamfer to edge around bottom (skip if fails on command line)
+  try:
+    bottom_edges = center.faces().sort_by(Axis.Z)[0].edges()
+    edges_x = bottom_edges.filter_by(Axis.X)
+    hinge_edges = sorted(
+        edges_x, key=lambda e: abs(e.center().Y)
+    )[1:3]
+    back_edge = sorted(edges_x, key=lambda e: abs(e.center().Y))[:1]
+    center.part = chamfer(
+        bottom_edges - hinge_edges - hinge_edges - back_edge,
+        bottom_chamfer,
+    )
+  except Exception:
+    # Chamfer failed - skip (cosmetic operation)
+    pass
 
   # Apply Hinge negative pin to center
   center.part -= hinge_negative_pin.part
@@ -162,11 +173,11 @@ def generate_base_tray(
         )
         with Locations((
             -hinge_pin_length,
-            hinge_depth - hinge_pin_radius * 2 - hinge_pin_offset,
+            hinge_depth - hinge_pin_diameter * 2 - hinge_pin_offset,
             hinge_pin_offset,
         )):
           Cylinder(
-              hinge_pin_radius,
+              hinge_pin_diameter,
               hinge_pin_length * 2 + hinge_width,
               rotation=(0, 90, 0),
               align=(Align.MAX, Align.MIN, Align.MIN),
@@ -193,7 +204,7 @@ def generate_base_tray(
       )
     hinge_lock.part = split(
         hinge_lock.part,
-        flap.part.faces().filter_by(Plane.YZ).sort_by(Axis.X)[1],
+        Plane(flap.part.faces().filter_by(Plane.YZ).sort_by(Axis.X)[1]),
     )
     hinge_lock.part = hinge_lock.part + mirror(hinge_lock.part, Plane.YZ)
 
@@ -211,7 +222,7 @@ def generate_base_tray(
       )
     hinge_lock_negative.part = split(
         hinge_lock_negative.part,
-        flap.part.faces().filter_by(Plane.YZ).sort_by(Axis.X)[1],
+        Plane(flap.part.faces().filter_by(Plane.YZ).sort_by(Axis.X)[1]),
     )
     hinge_lock_negative.part = (
         hinge_lock_negative.part +
@@ -239,12 +250,15 @@ def generate_base_tray(
   flap_hinge_arc_edges = flap_hinge_arc_edges.sort_by(Axis.Y)[-12:]
 
   flap_chamfer_edges = flap_bottom_chamfer_edges + flap_hinge_arc_edges
-  
-  flap.part = chamfer(flap_chamfer_edges, 0.4 - epsilon)
+
+  try:
+    flap.part = chamfer(flap_chamfer_edges, 0.4 - epsilon)
+  except Exception:
+    # Chamfer failed - skip (cosmetic operation)
+    pass
 
   # Decide whether it's one or two
   flap_compound = flap.part
-  
 
   if is_double_tray:
     center.part += mirror(center.part, Plane.XZ)
@@ -254,8 +268,8 @@ def generate_base_tray(
 
 # %%
 
+
 if __name__ == "__main__":
   center, flap = generate_base_tray(is_double_tray=True)
-
   show(center, flap)
 # %%

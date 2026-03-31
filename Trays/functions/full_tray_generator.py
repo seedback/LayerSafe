@@ -8,10 +8,12 @@ if __name__ == "__main__":
   from base_tray_generator import generate_base_tray
   from cutout_generator import generate_cutout, generate_square_cutout
   from calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
+  from calculate_cutout_positions.calculate_alternating_cutout_positions import calculate_alternating_cutout_positions
 else:
   from .base_tray_generator import generate_base_tray
   from .cutout_generator import generate_cutout, generate_square_cutout
   from .calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
+  from .calculate_cutout_positions.calculate_alternating_cutout_positions import calculate_alternating_cutout_positions
 
 base_tray_storage = {}
 
@@ -21,19 +23,23 @@ def calculate_usable_area(
     total_depth,
     rail_width,
     safety_margin,
+    tolerance,
     is_double_tray,
-    tolerance
 ):
   usable_area = {}
   usable_area_min = {}
-  usable_area_min['x'] = -total_width/2 + rail_width + safety_margin[0]
-  usable_area_min['y'] = -total_depth/2 + safety_margin[1]
+  usable_area_min['x'] = -total_width/2 + \
+      rail_width + safety_margin[0]
+  usable_area_min['y'] = -total_depth/2 + safety_margin[1] + tolerance/2
   usable_area['min'] = usable_area_min
 
   usable_area_max = {}
-  usable_area_max['x'] = total_width/2 - rail_width - safety_margin[0]
-  usable_area_max['y'] = total_depth/2 - \
-      safety_margin[1] if is_double_tray else 0
+  usable_area_max['x'] = total_width/2 - \
+      rail_width - safety_margin[0]
+  if is_double_tray:
+    usable_area_max['y'] = total_depth/2 - safety_margin[1] - tolerance/2
+  else:
+    usable_area_max['y'] = 0
   usable_area['max'] = usable_area_max
 
   return usable_area
@@ -42,8 +48,8 @@ def calculate_usable_area(
 def calculate_cutout_positions(
     usable_area,
     diameters,
+    edge_offsets,
     tolerance,
-    safety_margin,
     is_double_tray=False,
     min_cutout_spacing=2.0,
 ):
@@ -51,10 +57,13 @@ def calculate_cutout_positions(
     return []
   positions = []
   max_diameter = max(diameters)
-  if max_diameter < -usable_area['min']['y']:
+  if max_diameter <= -usable_area['min']['y'] or not is_double_tray:
     positions = calculate_linear_cutout_positions(
-        usable_area, diameters, tolerance, is_double_tray,
+        usable_area, diameters, edge_offsets, tolerance, is_double_tray,
         min_spacing=min_cutout_spacing)
+  else:
+    positions = calculate_alternating_cutout_positions(
+        usable_area, diameters, edge_offsets, tolerance)
 
   return positions
 
@@ -63,7 +72,7 @@ def calculate_cutout_positions(
 
 def generate_full_tray(
     diameters=[],
-    safety_margin=(6.5, 0.4),
+    safety_margin=(6.5, 0.8),
     total_width=189.5,
     total_depth=66.0,
     floor_thickness=0.8,
@@ -81,6 +90,7 @@ def generate_full_tray(
     hinge_lock_radius=2,
     hinge_lock_offset=0.5,
     hinge_lock_depth=8.3,
+    edge_offsets = [],
     is_double_tray=False,
     epsilon=0.001,
     tolerance=0.55,
@@ -90,6 +100,11 @@ def generate_full_tray(
     min_cutout_spacing=2.0,
 ):
   storage_key = ((total_width, total_depth), is_double_tray)
+
+  # Pad edge_offsets with zeros to match diameters length
+  edge_offsets = list(edge_offsets) if edge_offsets else []
+  while len(edge_offsets) < len(diameters):
+    edge_offsets.append(0)
 
   # Create a base tray if one of the given dimmension doesn't exist
   # Grab a deep copy of the tray from storage
@@ -123,19 +138,19 @@ def generate_full_tray(
       total_depth,
       rail_width,
       safety_margin,
+      tolerance,
       is_double_tray,
-      tolerance
   )
 
   positions = calculate_cutout_positions(
-      usable_area, diameters, tolerance, safety_margin, is_double_tray,
+      usable_area, diameters, edge_offsets, tolerance, is_double_tray,
       min_cutout_spacing=min_cutout_spacing)
 
   cutouts_list = []
 
   cutout_fn = generate_square_cutout if cutout_shape == 'square' else generate_cutout
 
-  for position in positions:
+  for i, position in enumerate(positions):
     cutout = cutout_fn(
         position['diameter'],
         tolerance,
@@ -143,6 +158,7 @@ def generate_full_tray(
         hinge_diameter,
         flap_center_gap,
         safety_margin[1],
+        edge_offsets[i] if len(edge_offsets) > i else 0,
         epsilon
     )
 
@@ -156,92 +172,31 @@ def generate_full_tray(
 
   if cutouts_list:
     cutouts = Compound(cutouts_list)
-    tray_compound -= cutouts
+    tray_compound = tray_compound.cut(cutouts)
 
   return tray_compound, cutouts_list
 
-
 # %%
-# if __name__ == "__main__":
-  # tray_compound = generate_full_tray(
-  #     [31.6,31.6,31.6,31.6,31.6,31.6,31.6,31.6,31.6,31.6],
-  #     is_double_tray=True
-  # )
-  # tray_compound = generate_full_tray(
-  #     [24.7,24.7,24.7,24.7,24.7,24.7,24.7,24.7,24.7,24.7,24.7,24.7,],
-  #     is_double_tray=True
-  # )
-  # tray_compound = generate_full_tray(
-  #     [49.5,31.2,39.3,39.3,39.3],
-  #     is_double_tray=True
+
+
+if __name__ == "__main__":
+  # tray_compound, cutout_list = generate_full_tray(
+  #     [49.6],
+  #     is_double_tray=False,
+  #     total_depth=110,
+  #     total_width=80,
+  #     edge_offsets=[.1]
   # )
 
-  # show(tray_compound)
-
-# %%
-if __name__ == "__main__":
-  tray_compound, _ = generate_full_tray(
-      [28.1, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7, 24.7],
-      safety_margin=(6.5, .8),
-      is_double_tray=True
+  tray_compound, cutout_list = generate_full_tray(
+      [49.6],
+      is_double_tray=True,
+      edge_offsets=[5, 5]
   )
 
-  show(tray_compound)
+  show(tray_compound, cutout_list)
 
-  export_stl(tray_compound, "../output/tray_1x28.1mm_11x24.7mm.stl")
-  export_step(tray_compound, "../output/tray_1x28.1mm_11x24.7mm.step")
-
-# %%
-if __name__ == "__main__":
-  tray_compound, _ = generate_full_tray(
-      [28.1, 28.1, 28.1, 28.1, 28.1, 28.1, 28.1, 28.1, 28.1, 28.1, ],
-      safety_margin=(6.5, .8),
-      is_double_tray=True
-  )
-
-  show(tray_compound)
-
-  export_stl(tray_compound, "../output/tray_12x28.1mm.stl")
-  export_step(tray_compound, "../output/tray_12x28.1mm.step")
-  
-# %%
-if __name__ == "__main__":
-  tray_compound, _ = generate_full_tray(
-      [29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8],
-      safety_margin=(6.5, .8),
-      is_double_tray=True
-  )
-
-  show(tray_compound)
-
-  export_stl(tray_compound, "../output/tray_12xRGGHandleLarge.stl")
-  export_step(tray_compound, "../output/tray_12xRGGHandleLarge.step")
-
-# # %%
-# if __name__ == "__main__":
-#   tray_compound = generate_full_tray(
-#       [39.3, 39.3, 39.3, 39.3, 39.3],
-#       is_double_tray=True
-#   )
-
-#   show(tray_compound)
-
-#   export_stl(tray_compound, "../output/tray_5x39.3mm.stl")
-#   export_step(tray_compound, "../output/tray_5x39.3mm.step")
-
-# %%
-
-if __name__ == "__main__":
-  tray_compound, cuttout_list = generate_full_tray(
-      # [29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8, 29.8],
-      [24.7],
-      is_double_tray=False,
-      total_width= 10 + 6.5*2 + 24.7
-  )
-  
-  export_stl(tray_compound, "../output/tray_test.stl")
-  export_step(tray_compound, "../output/tray_test.step")
-
-  show(tray_compound, cuttout_list)
+  # export_stl(tray_compound, "../output/test_RGG_tray.stl")
+  # export_step(tray_compound, "../output/test_RGG_tray.step")
 
 # %%

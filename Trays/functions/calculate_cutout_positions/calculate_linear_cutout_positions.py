@@ -13,12 +13,19 @@ def _line_fits(line_total, n_in_line, new_diameter, max_width, tolerance, min_sp
 def calculate_linear_cutout_positions(
     usable_area,
     diameters,
+    edge_offsets,
     tolerance,
     is_double_tray=False,
     min_spacing=2.0,
 ):
+  full_diameters = []
+  for diameter in diameters:
+    full_diameters.append(diameter + tolerance)
+
   line_one = []
+  line_one_indices = []
   line_two = []
+  line_two_indices = []
 
   max_width = usable_area['max']['x'] * 2
   line_one_total = 0
@@ -34,9 +41,11 @@ def calculate_linear_cutout_positions(
       diameter = diameters[left_idx]
       if _line_fits(line_one_total, len(line_one), diameter, max_width, tolerance, min_spacing):
         line_one.append(diameter)
+        line_one_indices.append(left_idx)
         line_one_total += diameter
       elif is_double_tray and _line_fits(line_two_total, len(line_two), diameter, max_width, tolerance, min_spacing):
         line_two.append(diameter)
+        line_two_indices.append(left_idx)
         line_two_total += diameter
       else:
         raise ValueError(
@@ -48,9 +57,11 @@ def calculate_linear_cutout_positions(
       diameter = diameters[right_idx]
       if _line_fits(line_two_total, len(line_two), diameter, max_width, tolerance, min_spacing):
         line_two.insert(0, diameter)
+        line_two_indices.insert(0, right_idx)
         line_two_total += diameter
       elif _line_fits(line_one_total, len(line_one), diameter, max_width, tolerance, min_spacing):
         line_one.append(diameter)
+        line_one_indices.append(right_idx)
         line_one_total += diameter
       else:
         raise ValueError(
@@ -69,8 +80,10 @@ def calculate_linear_cutout_positions(
       min_spacing,
   )
 
-  for pos in x_positions:
-    pos['y'] = usable_area['min']['y'] + (pos['diameter'] + tolerance) / 2
+  for i, pos in enumerate(x_positions):
+    pos['y'] = usable_area['min']['y'] + (pos['diameter']) / 2
+    if edge_offsets and i < len(edge_offsets):
+      pos['y'] += edge_offsets[line_one_indices[i]]
     pos['flipped'] = False
 
   if is_double_tray:
@@ -81,8 +94,10 @@ def calculate_linear_cutout_positions(
         min_spacing,
     )
 
-    for pos in y_positions:
-      pos['y'] = usable_area['max']['y'] - (pos['diameter'] + tolerance) / 2
+    for i, pos in enumerate(y_positions):
+      pos['y'] = usable_area['max']['y'] - (pos['diameter']) / 2
+      if edge_offsets and i < len(edge_offsets):
+        pos['y'] -= edge_offsets[line_two_indices[i]]
       pos['flipped'] = True
 
     positions = x_positions + y_positions
@@ -118,28 +133,3 @@ def calculate_line_positions(
     x += diameter / 2 + tolerance
 
   return positions
-
-def calculate_alternating_cutout_positions(
-    usable_area,
-    diameters,
-    tolerance,
-    is_double_tray=False,
-):
-  if len(diameters) == 1:
-    return [{
-        'x': 0,
-        'diameter': diameters[0],
-    }]
-  
-  positions = []
-  
-  for i, diameter in enumerate(diameters):
-    if i == 0:
-      positions.append({
-        'x': usable_area['min']['x'] + diameter/2,
-        'diameter': diameters[0],
-      })
-  
-
-def calculate_alternating_cutout_positions_redistribution_pass():
-  pass
