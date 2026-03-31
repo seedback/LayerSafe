@@ -130,6 +130,19 @@ if __name__ == "__main__":
           action="store_true",
           help="Generate a single-sided tray (default: double-sided)"
       )
+      parser.add_argument(
+          "--cutout-shape",
+          type=str,
+          default=None,
+          choices=["circle", "square"],
+          help=f"Cutout shape (default: {cutout_shape})"
+      )
+      parser.add_argument(
+          "--min-cutout-spacing",
+          type=float,
+          default=None,
+          help=f"Minimum gap (mm) between adjacent cutout edges (default: {min_cutout_spacing})"
+      )
 
       args = parser.parse_args()
 
@@ -139,6 +152,10 @@ if __name__ == "__main__":
       total_depth = args.depth
       custom_output = args.output
       is_double_tray = not args.single_sided
+      if args.cutout_shape is not None:
+        cutout_shape = args.cutout_shape
+      if args.min_cutout_spacing is not None:
+        min_cutout_spacing = args.min_cutout_spacing
 
       # Handle safety margins - use provided values or keep defaults
       margin_x = args.safety_margin_x if args.safety_margin_x is not None else safety_margin[0]
