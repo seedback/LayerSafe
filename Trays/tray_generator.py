@@ -13,6 +13,7 @@ from functions.full_tray_generator import generate_full_tray
 
 diameters = [24.7, 49.6, 39.2, 49.6, 24.7, ]
 edge_offsets = []
+edge_adjusts = []
 
 total_width = 189.5  # Default: 189.5
 total_depth = 66  # Default: 66.0
@@ -124,6 +125,13 @@ if __name__ == "__main__":
           help="Space-separated edge offsets for each base (e.g., 0.5 0.5 0.5)"
       )
       parser.add_argument(
+          "--edge-adjusts",
+          type=float,
+          nargs="*",
+          default=None,
+          help="Space-separated edge adjustments for each base (independent of edge-offsets)"
+      )
+      parser.add_argument(
           "--single-sided",
           action="store_true",
           help="Generate a single-sided tray (default: double-sided)"
@@ -150,6 +158,10 @@ if __name__ == "__main__":
       # Handle edge offsets - use provided values or keep default
       if args.edge_offsets is not None:
         edge_offsets = args.edge_offsets
+
+      # Handle edge adjusts - use provided values or keep default
+      if args.edge_adjusts is not None:
+        edge_adjusts = args.edge_adjusts
     else:
       # No arguments - use defaults
       custom_output = None
@@ -191,6 +203,7 @@ if __name__ == "__main__":
         hinge_lock_offset,
         hinge_lock_depth,
         edge_offsets,
+        edge_adjusts,
         is_double_tray,
         epsilon,
         base_tolerance,
