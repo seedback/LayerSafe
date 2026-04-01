@@ -74,7 +74,7 @@ python Trays/tray_generator.py 25.4 25.4 31.6
 | `--safety-margin-y` | float | 0.8 | Vertical margin from edges (mm) |
 | `--tolerance` | float | 0.55 | Tolerance for circle fit (mm) |
 | `--edge-offsets` | space-separated floats | None | Edge offsets for each base (e.g., `0.5 0.5 0.5`) will reduce the depth of the base with the given amount without affecting the width. Useful for fine-tuning fit, especially on larger bases (mm) |
-| `--edge-adjusts` | space-separated floats | None | Edge adjustments for each base (e.g., `0.2 0.2 0.2`), independent of edge-offsets for additional fine-tuning, a larger value will give a larger glat-spot below the curved section (mm) |
+| `--edge-adjusts` | space-separated floats | None | Edge adjustments for each base (e.g., `0.2 0.2 0.2`), independent of edge-offsets for additional fine-tuning, a larger value will give a larger flat-spot below the curved section (mm) |
 | `--single-sided` | flag | False | Generate a single-sided tray (default: double-sided) |
 | `--output` | string | auto | Output filename (without extension) |
 
