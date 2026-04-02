@@ -88,8 +88,8 @@ def generate_full_tray(
     hinge_lock_radius=2,
     hinge_lock_offset=0.5,
     hinge_lock_depth=8.3,
-    edge_offsets = [],
-    edge_adjusts = [],
+    edge_offsets=[],
+    edge_adjusts=[],
     is_double_tray=False,
     epsilon=0.001,
     tolerance=0.55,
@@ -165,7 +165,7 @@ def generate_full_tray(
     if position['flipped']:
       cutout = cutout.rotate(Axis.Z, 180)
 
-    cutout = cutout.translate((position['x'], position['y'], floor_thickness))
+    cutout = cutout.translate((position['x'], position['y'], 0))
 
     cutouts_list.append(cutout)
 
@@ -186,9 +186,9 @@ if __name__ == "__main__":
   #     total_width=80,
   #     edge_offsets=[.1]
   # )
-  
+
   tray_compound, cutout_list = generate_full_tray(
-      [24.7, 49.6,24.7, 49.6, 24.7],
+      [24.7, 49.6, 24.7, 49.6, 24.7],
       is_double_tray=True,
       edge_offsets=[5, 5],
       edge_adjusts=[0, -0.85, 0, -0.85, 0],

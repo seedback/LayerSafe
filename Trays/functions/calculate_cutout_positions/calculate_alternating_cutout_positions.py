@@ -20,7 +20,8 @@ def calculate_alternating_cutout_positions(
         'flipped': False,
     }]
 
-  positions = _calculate_initial_positions(usable_area, diameters, edge_offsets, tolerance)
+  positions = _calculate_initial_positions(
+      usable_area, diameters, edge_offsets, tolerance)
 
   return positions
 
