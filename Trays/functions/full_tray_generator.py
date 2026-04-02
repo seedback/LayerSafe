@@ -165,7 +165,7 @@ def generate_full_tray(
     if position['flipped']:
       cutout = cutout.rotate(Axis.Z, 180)
 
-    cutout = cutout.translate((position['x'], position['y'], floor_thickness))
+    cutout = cutout.translate((position['x'], position['y'], 0))
 
     cutouts_list.append(cutout)
 
