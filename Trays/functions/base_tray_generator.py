@@ -46,7 +46,7 @@ def generate_base_tray(
     chamfer((rail_builder.part.edges() | Axis.Y < Axis.Z)[:2], 1)
     RigidJoint("Middle")
 
-  tray.joints["LeftRail"].connect_to(rail_builder.part.joints["Middle"])
+  tray.joints["LeftRail"].connect_to(rail_builder.joints["Middle"])
   tray += rail_builder.part
   tray += mirror(rail_builder.part, Plane.YZ)
 
@@ -117,7 +117,7 @@ def generate_base_tray(
     )
     RigidJoint("Flap", joint_location=Location((hinge_lock_offset, 0, 0)))
   flap.joints["HingeLockLeft"].connect_to(
-      hinge_lock_builder.part.joints["Flap"])
+      hinge_lock_builder.joints["Flap"])
   flap += hinge_lock_builder.part
   flap += mirror(hinge_lock_builder.part, Plane.YZ)
 
@@ -131,9 +131,9 @@ def generate_base_tray(
     RigidJoint("Flap", joint_location=Location(
         (hinge_lock_offset + flap_middle_gap, 0, 0)))
 
-  tray.joints["Flap"].connect_to(flap_builder.part.joints["Middle"])
+  tray.joints["Flap"].connect_to(flap_builder.joints["Middle"])
   flap.joints["HingeLockLeft"].connect_to(
-      hinge_lock_negative_builder.part.joints["Flap"])
+      hinge_lock_negative_builder.joints["Flap"])
   tray -= hinge_lock_negative_builder.part
   tray -= mirror(hinge_lock_negative_builder.part, Plane.YZ)
 
@@ -150,7 +150,7 @@ def generate_base_tray(
 
   flap.joints["HingeLeft"].connect_to(hinge_negative.joints["Flap"])
   hinge_negative.joints["HingePin"].connect_to(
-      hinge_pin_negative_builder.part.joints["Hinge"])
+      hinge_pin_negative_builder.joints["Hinge"])
   tray -= hinge_pin_negative_builder.part
   tray -= mirror(hinge_pin_negative_builder.part, Plane.YZ)
 
@@ -162,7 +162,7 @@ def generate_base_tray(
     flap.joints[name] = joint
 
   flap.joints["HingeLeft"].connect_to(hinge.joints["Flap"])
-  hinge.joints["HingePin"].connect_to(hinge_pin_builder.part.joints["Hinge"])
+  hinge.joints["HingePin"].connect_to(hinge_pin_builder.joints["Hinge"])
   flap += hinge_pin_builder.part
   flap += mirror(hinge_pin_builder.part, Plane.YZ)
 
@@ -173,14 +173,16 @@ def generate_base_tray(
     part_list.append(mirror(flap, Plane.XZ))
 
   part_list.append(tray)
+  
+  hinge_pin_height = hinge_height/2 - floor_thickness
 
-  return Compound([part.translate((0, 0, -floor_thickness)) for part in part_list])
+  return Compound(children=[part.translate((0, 0, -floor_thickness)) for part in part_list], label=f"tray {total_width}x{total_depth}"), hinge_pin_height
 
 
 # %%
 
 if __name__ == "__main__":
-  base_tray = generate_base_tray(is_double_tray=False, total_width=30)
+  base_tray, _ = generate_base_tray(is_double_tray=True)
   export_step(base_tray, "../output/test.step")
   show(base_tray, render_joints=False)
 

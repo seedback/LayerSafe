@@ -54,16 +54,15 @@ def calculate_cutout_positions(
 ):
   if len(diameters) == 0:
     return []
-  positions = []
   max_diameter = max(diameters)
   if max_diameter <= -usable_area['min']['y'] or not is_double_tray:
-    positions = calculate_linear_cutout_positions(
+    print("linear")
+    return calculate_linear_cutout_positions(
         usable_area, diameters, edge_offsets, tolerance, is_double_tray)
   else:
-    positions = calculate_alternating_cutout_positions(
+    print("alternating")
+    return calculate_alternating_cutout_positions(
         usable_area, diameters, edge_offsets, tolerance)
-
-  return positions
 
 # %%
 
@@ -110,7 +109,7 @@ def generate_full_tray(
   # Create a base tray if one of the given dimmension doesn't exist
   # Grab a deep copy of the tray from storage
   if not storage_key in base_tray_storage:
-    temp_tray = generate_base_tray(
+    temp_tray, hinge_pin_height = generate_base_tray(
         total_width,
         total_depth,
         floor_thickness,
@@ -131,8 +130,10 @@ def generate_full_tray(
         is_double_tray,
         epsilon
     )
-    base_tray_storage[storage_key] = temp_tray
-  tray_compound = copy.deepcopy(base_tray_storage[storage_key])
+    base_tray_storage[storage_key] = (temp_tray, hinge_pin_height)
+  tray_data = copy.deepcopy(base_tray_storage[storage_key])
+  tray_compound = tray_data[0]
+  hinge_pin_height = tray_data[1]
 
   usable_area = calculate_usable_area(
       total_width,
@@ -148,32 +149,33 @@ def generate_full_tray(
 
   cutouts_list = []
 
-  for i, position in enumerate(positions):
+  for i, position in enumerate(positions.joints):
     cutout = (generate_cutout(
-        position['diameter'],
+        diameters[i],
         tolerance,
         flap_depth,
         hinge_diameter,
         flap_center_gap,
         safety_margin[1],
         edge_adjusts[i],
-        edge_offsets[i],
+        hinge_pin_height,
+        12.5,
         epsilon
     ))
+    
+    print("showing")
+    show(cutout.children[0], render_joints=True)
+    print("showed")
 
-    # Rotate 180 degrees if flipped (for top edge circles)
-    if position['flipped']:
-      cutout = cutout.rotate(Axis.Z, 180)
-
-    cutout = cutout.translate((position['x'], position['y'], 0))
-
+    print(cutout.joints)
+    positions.joints[f"{i}"].connect_to(cutout.children[0].joints["Center"])
+    tray_compound -= cutout.children[0]
+    
     cutouts_list.append(cutout)
+    print("Got here2")
+    
 
-  if cutouts_list:
-    cutouts = Compound(cutouts_list)
-    tray_compound -= cutouts
-
-  return tray_compound, cutouts_list
+  return tray_compound, cutouts_list, positions
 
 # %%
 
@@ -187,15 +189,18 @@ if __name__ == "__main__":
   #     edge_offsets=[.1]
   # )
 
-  tray_compound, cutout_list = generate_full_tray(
-      [24.7, 49.6, 24.7, 49.6, 24.7],
+  tray_compound, cutouts_list, positions = generate_full_tray(
+      [32,32,32,32,32,32,32,32,32,32],
       is_double_tray=True,
-      edge_offsets=[5, 5],
-      edge_adjusts=[0, -0.85, 0, -0.85, 0],
+      safety_margin=(6.5, 0.4),
+      # edge_offsets=[5, 5],
+      edge_adjusts=[0.3],
       floor_thickness=.8
   )
+  
+  print("Got here")
 
-  show(tray_compound, cutout_list)
+  show(tray_compound, cutouts_list, positions, render_joints=True)
 
   # export_stl(tray_compound, "../output/test_RGG_tray.stl")
   # export_step(tray_compound, "../output/test_RGG_tray.step")

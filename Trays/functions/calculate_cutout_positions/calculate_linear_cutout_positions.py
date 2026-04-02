@@ -1,6 +1,7 @@
 # %%
 import math
-
+from build123d import *
+from ocp_vscode import *
 # %%
 
 
@@ -11,6 +12,9 @@ def calculate_linear_cutout_positions(
     tolerance,
     is_double_tray=False,
 ):
+  with BuildPart() as positions_part:
+    Box(usable_area["min"]["x"]*-2, usable_area["min"]["y"]*-2, 1)
+  
   full_diameters = []
   for diameter in diameters:
     full_diameters.append(diameter + tolerance)
@@ -66,34 +70,30 @@ def calculate_linear_cutout_positions(
     if is_double_tray:
       take_from_left = not take_from_left
 
-  x_positions = calculate_line_positions(
+  front_positions = calculate_line_positions(
       usable_area,
       line_one
   )
 
-  for i, pos in enumerate(x_positions):
+  for i, pos in enumerate(front_positions):
     pos['y'] = usable_area['min']['y'] + (pos['diameter']) / 2
     if edge_offsets and i < len(edge_offsets):
       pos['y'] += edge_offsets[line_one_indices[i]]
-    pos['flipped'] = False
+    RigidJoint(f"{i}", positions_part.part, Location((pos["x"], pos["y"], 0)))
 
   if is_double_tray:
-    y_positions = calculate_line_positions(
+    back_positions = calculate_line_positions(
         usable_area,
         line_two,
     )
 
-    for i, pos in enumerate(y_positions):
+    for i, pos in enumerate(back_positions):
       pos['y'] = usable_area['max']['y'] - (pos['diameter']) / 2
       if edge_offsets and i < len(edge_offsets):
         pos['y'] -= edge_offsets[line_two_indices[i]]
-      pos['flipped'] = True
+      RigidJoint(f"{i + len(front_positions)}", positions_part.part, Location((pos["x"], pos["y"], 0), (0,0,180)))
 
-    positions = x_positions + y_positions
-  else:
-    positions = x_positions
-
-  return positions
+  return positions_part.part
 
 
 def calculate_line_positions(
@@ -134,3 +134,16 @@ def calculate_line_positions(
       positions.append(pos)
 
   return positions
+
+#%%
+if __name__ == "__main__":
+  positions = calculate_linear_cutout_positions(
+      {"min":{"x":-50, "y":-30}, "max":{"x":50, "y":30}},
+      [32, 32, 32],
+      [0,0,0],
+      0.55,
+      True,
+  )
+  show(positions, render_joints=True)
+  print(positions.joints)
+# %%
