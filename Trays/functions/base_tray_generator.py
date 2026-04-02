@@ -181,7 +181,7 @@ def generate_base_tray(
 
 if __name__ == "__main__":
   base_tray = generate_base_tray(is_double_tray=False, total_width=30)
-  export_step(base_tray, "test.step")
+  export_step(base_tray, "../output/test.step")
   show(base_tray, render_joints=False)
 
 # %%
