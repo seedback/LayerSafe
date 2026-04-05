@@ -16,6 +16,7 @@ else:
   from .calculate_cutout_positions.calculate_alternating_cutout_positions import *
 
 base_tray_storage = {}
+cutout_storage = {}
 
 
 def calculate_usable_area(
@@ -150,7 +151,8 @@ def generate_full_tray(
   cutouts_list = []
 
   for i, position in enumerate(positions.joints):
-    cutout = (generate_cutout(
+    # Create cache key from cutout parameters
+    cutout_key = (
         diameters[i],
         tolerance,
         flap_depth,
@@ -161,18 +163,30 @@ def generate_full_tray(
         hinge_pin_height,
         12.5,
         epsilon
-    ))
-    
-    print("showing")
-    show(cutout.children[0], render_joints=True)
-    print("showed")
+    )
 
-    print(cutout.joints)
+    # Check if cutout exists in storage, otherwise generate it
+    if cutout_key not in cutout_storage:
+      cutout = generate_cutout(
+          diameters[i],
+          tolerance,
+          flap_depth,
+          hinge_diameter,
+          flap_center_gap,
+          safety_margin[1],
+          edge_adjusts[i],
+          hinge_pin_height,
+          12.5,
+          epsilon
+      )
+      cutout_storage[cutout_key] = cutout
+    else:
+      cutout = copy.copy(cutout_storage[cutout_key])
+
     positions.joints[f"{i}"].connect_to(cutout.children[0].joints["Center"])
     tray_compound -= cutout.children[0]
     
     cutouts_list.append(cutout)
-    print("Got here2")
     
 
   return tray_compound, cutouts_list, positions
@@ -190,9 +204,9 @@ if __name__ == "__main__":
   # )
 
   tray_compound, cutouts_list, positions = generate_full_tray(
-      [32,32,32,32,32,32,32,32,32,32],
+      [40,40,40,40],
       is_double_tray=True,
-      safety_margin=(6.5, 0.4),
+      safety_margin=(6.5, 0.8),
       # edge_offsets=[5, 5],
       edge_adjusts=[0.3],
       floor_thickness=.8
