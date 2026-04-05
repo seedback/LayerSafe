@@ -1,5 +1,6 @@
 # %%
 import math
+from build123d import *
 
 
 def calculate_alternating_cutout_positions(
@@ -12,17 +13,20 @@ def calculate_alternating_cutout_positions(
   for diameter in diameters:
     full_diameters.append(diameter + tolerance)
 
-  if len(diameters) == 1:
-    return [{
-        'x': 0,
-        'diameter': diameters[0],
-        'y': usable_area['min']['y'] + diameter/2 - edge_offsets[0],
-        'flipped': False,
-    }]
+  positions_list = _calculate_initial_positions(
+      usable_area, diameters, edge_offsets, tolerance)
 
-  positions = _calculate_initial_positions(usable_area, diameters, edge_offsets, tolerance)
+  # Create a BuildPart with RigidJoints like the linear logic
+  with BuildPart() as positions_part:
+    Box(usable_area["min"]["x"]*-2, usable_area["min"]["y"]*-2, 1)
 
-  return positions
+  for i, pos in enumerate(positions_list):
+    if pos['flipped']:
+      RigidJoint(f"{i}", positions_part.part, Location((pos["x"], pos["y"], 0), (0,0,180)))
+    else:
+      RigidJoint(f"{i}", positions_part.part, Location((pos["x"], pos["y"], 0)))
+
+  return positions_part.part
 
 
 def _calculate_initial_positions(
