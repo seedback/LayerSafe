@@ -51,12 +51,13 @@ def calculate_cutout_positions(
     edge_offsets,
     tolerance,
     is_double_tray=False,
+    force_linear_positions = False
 ):
   if len(diameters) == 0:
     return []
   positions = []
   max_diameter = max(diameters)
-  if max_diameter <= -usable_area['min']['y'] or not is_double_tray:
+  if max_diameter <= -usable_area['min']['y'] or not is_double_tray or force_linear_positions:
     positions = calculate_linear_cutout_positions(
         usable_area, diameters, edge_offsets, tolerance, is_double_tray)
   else:
@@ -91,6 +92,7 @@ def generate_full_tray(
     edge_offsets = [],
     edge_adjusts = [],
     is_double_tray=False,
+    force_linear_positions = False,
     epsilon=0.001,
     tolerance=0.55,
     hinge_diameter=27.7,
@@ -143,8 +145,13 @@ def generate_full_tray(
       is_double_tray,
   )
 
+  print("usable_area", usable_area)
+  print("diameters", diameters)
+  print("edge_offsets", edge_offsets)
+  print("tolerance", tolerance)
+  print("is_double_tray", is_double_tray)
   positions = calculate_cutout_positions(
-      usable_area, diameters, edge_offsets, tolerance, is_double_tray)
+      usable_area, diameters, edge_offsets, tolerance, is_double_tray, force_linear_positions)
 
   cutouts_list = []
 
@@ -188,11 +195,9 @@ if __name__ == "__main__":
   # )
   
   tray_compound, cutout_list = generate_full_tray(
-      [24.7, 49.6,24.7, 49.6, 24.7],
+      [25, 40, 40, 25, 25, 25, 25],
       is_double_tray=True,
-      edge_offsets=[5, 5],
-      edge_adjusts=[0, -0.85, 0, -0.85, 0],
-      floor_thickness=.8
+      force_linear_positions=True,
   )
 
   show(tray_compound, cutout_list)

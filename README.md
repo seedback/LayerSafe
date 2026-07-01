@@ -76,6 +76,7 @@ python Trays/tray_generator.py 25.4 25.4 31.6
 | `--edge-offsets` | space-separated floats | None | Edge offsets for each base (e.g., `0.5 0.5 0.5`) will reduce the depth of the base with the given amount without affecting the width. Useful for fine-tuning fit, especially on larger bases (mm) |
 | `--edge-adjusts` | space-separated floats | None | Edge adjustments for each base (e.g., `0.2 0.2 0.2`), independent of edge-offsets for additional fine-tuning, a larger value will give a larger flat-spot below the curved section (mm) |
 | `--single-sided` | flag | False | Generate a single-sided tray (default: double-sided) |
+| `--force-linear-positions` | flag | False | Forces linear positioning (default: automatically selects linear or alternating positioning) |
 | `--output` | string | auto | Output filename (without extension) |
 
 #### Advanced Examples

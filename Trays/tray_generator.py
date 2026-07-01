@@ -136,6 +136,11 @@ if __name__ == "__main__":
           action="store_true",
           help="Generate a single-sided tray (default: double-sided)"
       )
+      parser.add_argument(
+        "--force-linear-positions",
+        action="store_true",
+        help="Forces the use of linear positioning as opposed to alternating"
+      )
 
       args = parser.parse_args()
 
@@ -145,6 +150,7 @@ if __name__ == "__main__":
       total_depth = args.depth
       custom_output = args.output
       is_double_tray = not args.single_sided
+      force_linear_positions = args.force_linear_positions
 
       # Handle safety margins - use provided values or keep defaults
       margin_x = args.safety_margin_x if args.safety_margin_x is not None else safety_margin[0]
@@ -205,6 +211,7 @@ if __name__ == "__main__":
         edge_offsets,
         edge_adjusts,
         is_double_tray,
+        force_linear_positions,
         epsilon,
         base_tolerance,
         hinge_diameter
@@ -239,30 +246,30 @@ if __name__ == "__main__":
 
     # Check for math domain error - usually caused by mixing large and small diameter bases
     if "math domain error" in error_message.lower():
-      print(f"{RED}Error: Cannot fit base configuration.{RESET}", flush=True)
-      print(
-          f"{RED}Mixing large base diameters (32mm+) with small base diameters (<32mm) requires{RESET}",
-          flush=True)
-      print(
-          f"{RED}alternating them in the layout. Multiple small bases in a row causes geometric conflicts.{RESET}",
-          flush=True)
-      print(
-          f"{RED}Try: Distribute smaller diameters throughout with larger ones in between.{RESET}",
-          flush=True)
-      print(
-          f"{RED}Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]{RESET}",
-          flush=True)
+      print(f"{RED}Error: Cannot fit base configuration.\n" \
+          "Mixing large base diameters (32mm+) with small base diameters (<32mm) requires\n" \
+          "alternating them in the layout. Multiple small bases in a row causes geometric conflicts.\n" \
+          "Try: Distribute smaller diameters throughout with larger ones in between.\n" \
+          "Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]\n" \
+          "Try: Setting the flag \"--force-linear-positions\".{RESET}", flush=True)
+      raise ValueError("Error: Cannot fit base configuration.\n" \
+          "Mixing large base diameters (32mm+) with small base diameters (<32mm) requires\n" \
+          "alternating them in the layout. Multiple small bases in a row causes geometric conflicts.\n" \
+          "Try: Distribute smaller diameters throughout with larger ones in between.\n" \
+          "Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]\n" \
+          "Try: Setting the flag \"--force-linear-positions\".")
     if "keyerror: 'flipped'" in error_message.lower():
       print(
-          f"{RED}Error: System mirror the geometry of the base cutout for double sided trays.{RESET}",
+          f"{RED}Error: System mirror the geometry of the base cutout for double sided trays.\n" \
+          "This usually occurs when only one diameter is provided.\n" \
+          "Try: Setting the flag \"--single-sided\".\n" \
+          "(Note: You may then need to set --depth manually. Try --depth 132 for standard size.){RESET}",
           flush=True)
-      print(
-          f"{RED}This usually occurs when only one diameter is provided.{RESET}",
-          flush=True)
-      print(f"{RED}Try setting the flag \"--single-sided\".{RESET}", flush=True)
-      print(
-          f"{RED}(Note: You may then need to set --depth manually. Try --depth 132 for standard size.){RESET}",
-          flush=True)
+      raise ValueError("Error: System mirror the geometry of the base cutout for double sided trays.\n" \
+          "This usually occurs when only one diameter is provided.\n" \
+          "Try: Setting the flag \"--single-sided\".\n" \
+          "(Note: You may then need to set --depth manually. Try --depth 132 for standard size.)\n")
+      
     else:
       print(f"{RED}Error: {type(e).__name__}: {e}{RESET}", flush=True)
 
