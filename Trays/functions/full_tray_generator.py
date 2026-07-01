@@ -51,13 +51,14 @@ def calculate_cutout_positions(
     edge_offsets,
     tolerance,
     is_double_tray=False,
+    force_linear_positions=False,
     min_cutout_spacing=2.0,
 ):
   if len(diameters) == 0:
     return []
   positions = []
   max_diameter = max(diameters)
-  if max_diameter <= -usable_area['min']['y'] or not is_double_tray:
+  if max_diameter <= -usable_area['min']['y'] or not is_double_tray or force_linear_positions:
     positions = calculate_linear_cutout_positions(
         usable_area, diameters, edge_offsets, tolerance, is_double_tray,
         min_spacing=min_cutout_spacing)
@@ -91,7 +92,9 @@ def generate_full_tray(
     hinge_lock_offset=0.5,
     hinge_lock_depth=8.3,
     edge_offsets = [],
+    edge_adjusts = [],
     is_double_tray=False,
+    force_linear_positions = False,
     epsilon=0.001,
     tolerance=0.55,
     hinge_diameter=27.7,
@@ -105,6 +108,11 @@ def generate_full_tray(
   edge_offsets = list(edge_offsets) if edge_offsets else []
   while len(edge_offsets) < len(diameters):
     edge_offsets.append(0)
+
+  # Pad edge_adjusts with zeros to match diameters length
+  edge_adjusts = list(edge_adjusts) if edge_adjusts else []
+  while len(edge_adjusts) < len(diameters):
+    edge_adjusts.append(0)
 
   # Create a base tray if one of the given dimmension doesn't exist
   # Grab a deep copy of the tray from storage
@@ -142,8 +150,18 @@ def generate_full_tray(
       is_double_tray,
   )
 
+  print("usable_area", usable_area)
+  print("diameters", diameters)
+  print("edge_offsets", edge_offsets)
+  print("tolerance", tolerance)
+  print("is_double_tray", is_double_tray)
+  # Square cutouts must use linear positioning: the alternating layout nests
+  # bases using circle-based touch math, which underestimates a square's
+  # diagonal footprint and can overlap adjacent squares at their corners.
+  use_linear_positions = force_linear_positions or cutout_shape == 'square'
   positions = calculate_cutout_positions(
       usable_area, diameters, edge_offsets, tolerance, is_double_tray,
+      force_linear_positions=use_linear_positions,
       min_cutout_spacing=min_cutout_spacing)
 
   cutouts_list = []
@@ -153,13 +171,14 @@ def generate_full_tray(
   for i, position in enumerate(positions):
     cutout = cutout_fn(
         position['diameter'],
-        tolerance,
-        flap_depth,
-        hinge_diameter,
-        flap_center_gap,
-        safety_margin[1],
-        edge_offsets[i] if len(edge_offsets) > i else 0,
-        epsilon
+        tolerance=tolerance,
+        flap_depth=flap_depth,
+        hinge_diameter=hinge_diameter,
+        flap_center_gap=flap_center_gap,
+        cutout_edge_spacing=safety_margin[1],
+        floor_thickness=edge_adjusts[i],
+        lip_offset=edge_offsets[i],
+        epsilon=epsilon
     )
 
     # Rotate 180 degrees if flipped (for top edge circles)
@@ -189,9 +208,9 @@ if __name__ == "__main__":
   # )
 
   tray_compound, cutout_list = generate_full_tray(
-      [49.6],
+      [25, 40, 40, 25, 25, 25, 25],
       is_double_tray=True,
-      edge_offsets=[5, 5]
+      force_linear_positions=True,
   )
 
   show(tray_compound, cutout_list)

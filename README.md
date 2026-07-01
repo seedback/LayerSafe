@@ -74,7 +74,9 @@ python Trays/tray_generator.py 25.4 25.4 31.6
 | `--safety-margin-y` | float | 0.8 | Vertical margin from edges (mm) |
 | `--tolerance` | float | 0.55 | Tolerance for circle fit (mm) |
 | `--edge-offsets` | space-separated floats | None | Edge offsets for each base (e.g., `0.5 0.5 0.5`) will reduce the depth of the base with the given amount without affecting the width. Useful for fine-tuning fit, especially on larger bases (mm) |
+| `--edge-adjusts` | space-separated floats | None | Edge adjustments for each base (e.g., `0.2 0.2 0.2`), independent of edge-offsets for additional fine-tuning, a larger value will give a larger flat-spot below the curved section (mm) |
 | `--single-sided` | flag | False | Generate a single-sided tray (default: double-sided) |
+| `--force-linear-positions` | flag | False | Forces linear positioning (default: automatically selects linear or alternating positioning) |
 | `--output` | string | auto | Output filename (without extension) |
 
 #### Advanced Examples
@@ -99,6 +101,11 @@ Apply edge offsets to customize base positioning:
 python Trays/tray_generator.py 25.4 25.4 25.4 --edge-offsets 0.5 0.5 0.5
 ```
 
+Apply edge adjustments for additional fine-tuning:
+```bash
+python Trays/tray_generator.py 25.4 25.4 25.4 --edge-adjusts 0.2 0.2 0.2
+```
+
 Specify a custom output filename:
 ```bash
 python Trays/tray_generator.py 31.6 31.6 31.6 --output my_custom_tray
@@ -106,7 +113,7 @@ python Trays/tray_generator.py 31.6 31.6 31.6 --output my_custom_tray
 
 Combine multiple options:
 ```bash
-python Trays/tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4 --tolerance 0.6 --width 190 --single-sided --edge-offsets 0.2 0.2 0.2 0.2 0.2 0.2 --output special_tray
+python Trays/tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4 --tolerance 0.6 --width 190 --single-sided --edge-offsets 0.2 0.2 0.2 0.2 0.2 0.2 --edge-adjusts 0.1 0.1 0.1 0.1 0.1 0.1 --output special_tray
 ```
 
 #### Getting Help
