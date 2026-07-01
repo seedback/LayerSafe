@@ -185,7 +185,14 @@ def _side_from_hyp(
     hyp,
     side
 ):
-  return math.sqrt(hyp*hyp - side*side)
+  ratio = side / hyp
+  if abs(ratio) > 1:
+    raise ValueError("Alternating positioning was used and vertical gap between bases is too large.\n"
+    "(eg. any set of two subsequent bases must be big enough to touch if they're placed on oposite sides of the tray)\n" \
+    "Try enabling --force-linear-positions.")
+  angle = math.asin(ratio)
+  result = hyp * math.cos(angle)
+  return result
 
 # %%
 
