@@ -33,6 +33,19 @@ class CutoutShape:
     """(x, y) bounding extent of the physical hole cut into the tray."""
     return (size + tolerance, size + tolerance)
 
+  def layout_sizes(self, size, tolerance):
+    """Per-axis sizes the layout algorithms should use for this base,
+    defined so that layout_size + tolerance equals the physical hole
+    footprint per axis.
+
+    Default: (size, size), exact for shapes whose bounding box is
+    size x size (do NOT compute it as footprint - tolerance here: the
+    float round-trip would shift layout positions by ~1e-14 and make
+    otherwise identical exports differ). Shapes with a wider bounding
+    box (e.g. a hex across its corners) must override this.
+    """
+    return (size, size)
+
   def circumradius(self, size, tolerance):
     """Radius of the smallest circle containing the physical hole."""
     raise NotImplementedError
@@ -86,7 +99,38 @@ class SquareShape(CutoutShape):
     return generate_square_cutout(size, **params)
 
 
-SHAPES = {shape.name: shape for shape in (CircleShape(), SquareShape())}
+class HexShape(CutoutShape):
+  """Regular hexagon, measured across the flats (the natural caliper
+  measurement). Oriented with flats facing the tray edges, so the corners
+  point along x: the footprint is 2/sqrt(3) (~1.155x) wider across x than
+  the measured size.
+  """
+  name = 'hex'
+  # Same reason as squares: circle-tangency nesting cannot guarantee
+  # corner clearance, so hexes stay on the linear layout.
+  supports_alternating = False
+
+  def footprint(self, size, tolerance):
+    across_corners = (size + tolerance) * 2 / math.sqrt(3)
+    return (across_corners, size + tolerance)
+
+  def circumradius(self, size, tolerance):
+    return (size + tolerance) / math.sqrt(3)
+
+  def layout_sizes(self, size, tolerance):
+    across_corners = (size + tolerance) * 2 / math.sqrt(3)
+    return (across_corners - tolerance, size)
+
+  def build(self, size, **params):
+    try:
+      from .cutout_generator import generate_hex_cutout
+    except ImportError:
+      from cutout_generator import generate_hex_cutout
+    return generate_hex_cutout(size, **params)
+
+
+SHAPES = {shape.name: shape
+          for shape in (CircleShape(), SquareShape(), HexShape())}
 
 
 def get_shape(name):

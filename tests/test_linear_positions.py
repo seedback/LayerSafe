@@ -151,6 +151,32 @@ def test_overflow_raises_double_when_both_rows_full():
         UA_DOUBLE, [40.0] * 9, [0] * 9, TOL, is_double_tray=True)
 
 
+def test_layout_sizes_widen_spacing_and_set_y():
+  """Shapes wider than their measured size (hexes across corners) pass
+  per-axis layout_sizes: x spacing must use the wide extent while the
+  'size' key and the y resting extent keep their own values."""
+  wide = 30.0 * 2 / (3 ** 0.5)  # hex-like: ~34.64 across corners
+  positions = calculate_linear_cutout_positions(
+      UA_SINGLE, [30.0, 30.0], [0, 0], TOL, is_double_tray=False,
+      layout_sizes=[(wide, 30.0), (wide, 30.0)])
+
+  # 'size' stays the measured scalar; y rests on the y extent.
+  assert all(p['size'] == 30.0 for p in positions)
+  assert all(p['y'] == pytest.approx(-31.925 + 15.0) for p in positions)
+
+  # The physical edge-to-edge gap along x (using the wide extent) must
+  # still respect min_spacing.
+  gap = (positions[1]['x'] - positions[0]['x']) - wide
+  assert gap >= MIN_SPACING - 1e-9
+
+  # And the wide extent must actually spread the centers further apart
+  # than the same bases laid out with their scalar size.
+  narrow = calculate_linear_cutout_positions(
+      UA_SINGLE, [30.0, 30.0], [0, 0], TOL, is_double_tray=False)
+  assert (positions[1]['x'] - positions[0]['x']
+          > narrow[1]['x'] - narrow[0]['x'])
+
+
 def test_line_fits_boundary_is_inclusive():
   # One item: total + 2 * min_spacing must be <= max_width.
   # 162.9 + 2 * 2.0 == 166.9 -> exactly fits; 163.0 does not.

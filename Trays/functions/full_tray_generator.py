@@ -55,15 +55,17 @@ def calculate_cutout_positions(
     is_double_tray=False,
     force_linear_positions=False,
     min_cutout_spacing=2.0,
+    layout_sizes=None,
 ):
   if len(sizes) == 0:
     return []
   positions = []
-  max_size = max(sizes)
-  if max_size <= -usable_area['min']['y'] or not is_double_tray or force_linear_positions:
+  max_y_size = (max(y for _, y in layout_sizes) if layout_sizes
+                else max(sizes))
+  if max_y_size <= -usable_area['min']['y'] or not is_double_tray or force_linear_positions:
     positions = calculate_linear_cutout_positions(
         usable_area, sizes, edge_offsets, tolerance, is_double_tray,
-        min_spacing=min_cutout_spacing)
+        min_spacing=min_cutout_spacing, layout_sizes=layout_sizes)
   else:
     positions = calculate_alternating_cutout_positions(
         usable_area, sizes, edge_offsets, tolerance)
@@ -128,7 +130,9 @@ def generate_full_tray(
       usable_area, sizes, edge_offsets, config.tolerance,
       config.is_double_tray,
       force_linear_positions=use_linear_positions,
-      min_cutout_spacing=config.min_cutout_spacing)
+      min_cutout_spacing=config.min_cutout_spacing,
+      layout_sizes=[shape.layout_sizes(size, config.tolerance)
+                    for size in sizes])
 
   cutouts_list = []
 
@@ -143,6 +147,7 @@ def generate_full_tray(
         edge_adjust=edge_adjusts[i],
         edge_offset=edge_offsets[i],
         taper_angle=config.taper_angle,
+        flap_clearance=config.flap_clearance,
         epsilon=config.epsilon,
     )
 

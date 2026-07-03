@@ -7,13 +7,14 @@ import math
 
 import pytest
 
-from shapes import SHAPES, get_shape, CircleShape, SquareShape
+from shapes import SHAPES, get_shape, CircleShape, SquareShape, HexShape
 
 
-def test_registry_contains_circle_and_square():
-  assert set(SHAPES) >= {'circle', 'square'}
+def test_registry_contains_all_shapes():
+  assert set(SHAPES) >= {'circle', 'square', 'hex'}
   assert isinstance(SHAPES['circle'], CircleShape)
   assert isinstance(SHAPES['square'], SquareShape)
+  assert isinstance(SHAPES['hex'], HexShape)
   # Registry keys match the shapes' own names (used for --cutout-shape).
   for name, shape in SHAPES.items():
     assert shape.name == name
@@ -56,6 +57,31 @@ def test_min_center_distance_squares_is_conservative():
 
 def test_alternating_layout_support_flags():
   assert get_shape('circle').supports_alternating is True
-  # Squares must stay on the linear layout: circle-tangency nesting
-  # underestimates their diagonal footprint.
+  # Squares and hexes must stay on the linear layout: circle-tangency
+  # nesting underestimates their corner footprint.
   assert get_shape('square').supports_alternating is False
+  assert get_shape('hex').supports_alternating is False
+
+
+def test_hex_footprint_is_wider_across_corners():
+  # size is measured across the flats (y); the corners point along x and
+  # stick out by a factor of 2/sqrt(3).
+  hex_shape = get_shape('hex')
+  fx, fy = hex_shape.footprint(25.0, 0.55)
+  assert fy == pytest.approx(25.55)
+  assert fx == pytest.approx(25.55 * 2 / math.sqrt(3))
+  assert hex_shape.circumradius(25.0, 0.55) == pytest.approx(
+      25.55 / math.sqrt(3))
+
+
+def test_layout_sizes_default_and_hex():
+  # Circle and square lay out as size x size...
+  assert get_shape('circle').layout_sizes(40.0, 0.55) == pytest.approx(
+      (40.0, 40.0))
+  assert get_shape('square').layout_sizes(40.0, 0.55) == pytest.approx(
+      (40.0, 40.0))
+  # ...but a hex must reserve its across-corners width along x, so that
+  # layout_size + tolerance equals the physical footprint per axis.
+  hx, hy = get_shape('hex').layout_sizes(25.0, 0.55)
+  assert hy == pytest.approx(25.0)
+  assert hx == pytest.approx(25.55 * 2 / math.sqrt(3) - 0.55)

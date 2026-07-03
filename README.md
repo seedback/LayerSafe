@@ -10,7 +10,9 @@ LayerSafe generates parametric 3D tray designs featuring:
 - Adjustable dimensions (width and depth)
 - Hinged flap mechanisms for opening/closing
 - Customizable rails and base structure
-- Built-in cutouts for organization
+- Cutouts for **circular, square, and hexagonal** bases, mixed sizes per tray
+- Adjustable cutout wall angle (taper) to match sloped base edges
+- Flap clearance so closed flaps rotate past seated bases
 - Support for single or double tray configurations
 - Export capabilities in STEP and STL formats
 
@@ -47,10 +49,20 @@ The tray generator is designed to be run from the command line, making it easy f
 #### Basic Syntax
 
 ```bash
-python Trays/tray_generator.py <diameter1> <diameter2> ... [options]
+python Trays/tray_generator.py <size1> <size2> ... [options]
 ```
 
-> **⚠️ Important:** Base diameters should be measured as accurately as possible. Precision down to **0.1mm** is recommended for proper fit. Use quality calipers with good accuracy (±0.1mm or better) to measure your bases before generating the tray.
+Each size is one base. What "size" means depends on the cutout shape:
+
+| Shape | `--cutout-shape` | Size measurement |
+|-------|------------------|------------------|
+| Circle (default) | `circle` | Base diameter |
+| Square | `square` | Side length |
+| Hexagon | `hex` | Across the flats |
+
+Hex cutouts are oriented with their flats facing the tray edges (corners pointing sideways), so measure your hex bases across the flats—the natural caliper measurement.
+
+> **⚠️ Important:** Base sizes should be measured as accurately as possible. Precision down to **0.1mm** is recommended for proper fit. Use quality calipers with good accuracy (±0.1mm or better) to measure your bases before generating the tray.
 
 #### Simple Examples
 
@@ -64,20 +76,47 @@ Generate a tray with mixed diameters (2× 25.4mm and 1× 31.6mm):
 python Trays/tray_generator.py 25.4 25.4 31.6
 ```
 
+Generate a tray for five 29.8mm (across flats) hex bases:
+```bash
+python Trays/tray_generator.py 29.8 29.8 29.8 29.8 29.8 --cutout-shape hex
+```
+
 #### Available Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--width` | float | 189.5 | Total tray width in mm |
 | `--depth` | float | 66.0 | Total tray depth in mm |
+| `--cutout-shape` | choice | circle | Cutout shape: `circle`, `square`, or `hex` |
+| `--taper-angle` | float | shape default | Wall angle of the cutouts in degrees from vertical (default: 12.5 for circle, 5 for square/hex). See [Matching sloped bases](#matching-sloped-bases) |
+| `--flap-clearance` | float | 1.0 | Extra sideways clearance (mm per side) in the flap's part of square/hex cutouts so the flap rotates closed past seated bases. Circle cutouts have their own rotation relief and ignore this |
+| `--tolerance` | float | 0.55 | Fit tolerance added around each base (mm) |
 | `--safety-margin-x` | float | 6.5 | Horizontal margin from edges (mm) |
 | `--safety-margin-y` | float | 0.8 | Vertical margin from edges (mm) |
-| `--tolerance` | float | 0.55 | Tolerance for circle fit (mm) |
+| `--min-cutout-spacing` | float | 2.0 | Minimum gap (mm) between adjacent cutout edges |
 | `--edge-offsets` | space-separated floats | None | Edge offsets for each base (e.g., `0.5 0.5 0.5`) will reduce the depth of the base with the given amount without affecting the width. Useful for fine-tuning fit, especially on larger bases (mm) |
 | `--edge-adjusts` | space-separated floats | None | Edge adjustments for each base (e.g., `0.2 0.2 0.2`), independent of edge-offsets for additional fine-tuning, a larger value will give a larger flat-spot below the curved section (mm) |
 | `--single-sided` | flag | False | Generate a single-sided tray (default: double-sided) |
-| `--force-linear-positions` | flag | False | Forces linear positioning (default: automatically selects linear or alternating positioning) |
+| `--force-linear-positions` | flag | False | Forces linear positioning (default: automatically selects linear or alternating positioning; square and hex cutouts always use linear) |
 | `--output` | string | auto | Output filename (without extension) |
+
+#### Matching sloped bases
+
+Many bases are narrower at the top than the bottom. Give the generator the **bottom** size and set the wall angle to match the slope:
+
+```
+taper_angle = atan((bottom_size - top_size) / (2 * base_height))
+```
+
+A positive angle narrows the cutout toward the top (the usual case); a negative angle widens it.
+
+Example: hex bases measuring 29.8mm across flats at the bottom, 27.2mm at the top, 4mm tall → `atan(2.6 / 8)` ≈ 18°:
+
+```bash
+python Trays/tray_generator.py 29.8 29.8 29.8 29.8 29.8 --cutout-shape hex --taper-angle 18.0
+```
+
+The walls then keep the same clearance along the full height of the base.
 
 #### Advanced Examples
 
@@ -96,24 +135,19 @@ Generate a single-sided tray (not double-sided):
 python Trays/tray_generator.py 31.6 31.6 31.6 --single-sided
 ```
 
+Square bases with a reduced flap clearance:
+```bash
+python Trays/tray_generator.py 25.0 25.0 25.0 --cutout-shape square --flap-clearance 0.6
+```
+
 Apply edge offsets to customize base positioning:
 ```bash
 python Trays/tray_generator.py 25.4 25.4 25.4 --edge-offsets 0.5 0.5 0.5
 ```
 
-Apply edge adjustments for additional fine-tuning:
-```bash
-python Trays/tray_generator.py 25.4 25.4 25.4 --edge-adjusts 0.2 0.2 0.2
-```
-
 Specify a custom output filename:
 ```bash
 python Trays/tray_generator.py 31.6 31.6 31.6 --output my_custom_tray
-```
-
-Combine multiple options:
-```bash
-python Trays/tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4 --tolerance 0.6 --width 190 --single-sided --edge-offsets 0.2 0.2 0.2 0.2 0.2 0.2 --edge-adjusts 0.1 0.1 0.1 0.1 0.1 0.1 --output special_tray
 ```
 
 #### Getting Help
@@ -125,42 +159,43 @@ python Trays/tray_generator.py --help
 
 #### Output
 
-Generated files are automatically saved to `Trays/output/`:
+Generated files are saved to `Trays/output/` (regardless of the directory you run the command from):
 - **STL format** (`.stl`) — Suitable for 3D printing
 - **STEP format** (`.step`) — Suitable for CAD software and CNC machines
 
-Filenames are auto-generated based on your diameter input (e.g., `tray_6x31.6mm.stl`), or you can specify a custom name with `--output`.
-
-### Jupyter Notebook (Optional)
-
-If you prefer an interactive notebook environment:
-1. Open `Trays/tray_generator.ipynb` in Jupyter
-2. Modify the default parameters in the notebook and run cells
-3. View the 3D model preview in the notebook output
+Filenames are auto-generated from your size input (e.g., `tray_6x31.6mm.stl`), or you can specify a custom name with `--output`.
 
 ### Python IDE Usage (Optional)
 
 To use in VS Code or another IDE:
-1. Open `Trays/tray_generator.py` 
-2. Modify the default parameters in the "User-Adjustable Parameters" section
+1. Open `Trays/tray_generator.py`
+2. Adjust the parameters in the "User-Adjustable Parameters" section (see below)
 3. Run the script (VS Code: F5 or Run button)
 
 ### Customizing Tray Parameters
 
-For more detailed customization, you can edit the **User-Adjustable Parameters** section in `tray_generator.py`:
+All tray geometry and generation defaults live in a single `TrayConfig` dataclass in `Trays/functions/tray_config.py` — dimensions, rail/flap/hinge geometry, cutout shape, taper, tolerances, and more. For deeper customization than the CLI exposes, either edit the defaults there or override individual fields in `tray_generator.py`:
 
 ```python
-total_width = 189.5        # Overall tray width (mm)
-total_depth = 66.0         # Overall tray depth (mm)
-floor_thickness = 0.4      # Bottom thickness (mm)
-base_height = 4.2          # Height of base section (mm)
-rail_height = 8.4          # Height of side rails (mm)
-rail_width = 4.8           # Width of side rails (mm)
-flap_depth = 11.8          # Depth of hinged flap (mm)
-flap_center_gap = 0.2      # Gap between flap and base (mm)
-hinge_width = 2.8          # Width of hinge mechanism (mm)
-hinge_height = 3.6         # Height of hinge mechanism (mm)
-is_double_tray = True      # Set to True for stacked tray configuration
+config = TrayConfig(
+    total_width=200,        # Overall tray width (mm)
+    rail_height=10.0,       # Height of side rails (mm)
+    cutout_shape='hex',     # 'circle', 'square', or 'hex'
+    is_double_tray=False,   # Single-sided tray
+)
+```
+
+### Adding a new cutout shape
+
+Shapes are pluggable: subclass `CutoutShape` in `Trays/functions/shapes.py`, implement `build()` (the 3D negative) and `circumradius()`, override `footprint()`/`layout_sizes()` if the shape's bounding box is not size × size, and register an instance in `SHAPES`. The CLI choices, layout, and orchestrator pick it up automatically.
+
+## Development
+
+Run the test suite (pure-math layout tests, no CAD required for most):
+
+```bash
+pip install pytest
+python -m pytest
 ```
 
 ## License

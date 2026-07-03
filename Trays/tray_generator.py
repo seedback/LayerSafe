@@ -122,9 +122,20 @@ if __name__ == "__main__":
           type=float,
           default=None,
           help="Wall angle of the cutouts in degrees from vertical "
-          "(default: 12.5 for circle, 5 for square). To match a measured "
-          "base: atan((top_size - bottom_size) / (2 * base_height)), "
-          "e.g. a 25mm->27mm base 3mm tall needs atan(2/6) = 18.4 degrees."
+          "(default: 12.5 for circle, 5 for square/hex). Positive narrows "
+          "the cutout toward the top. To match a measured base: "
+          "atan((bottom_size - top_size) / (2 * base_height)), e.g. a base "
+          "29.8mm at the bottom, 27.2mm at the top and 4mm tall needs "
+          "atan(2.6/8) = 18 degrees."
+      )
+      parser.add_argument(
+          "--flap-clearance",
+          type=float,
+          default=None,
+          help="Extra sideways clearance (mm per side) in the flap's part "
+          "of square/hex cutouts so the flap can rotate closed past a "
+          f"seated base (default: {config.flap_clearance}). Circle "
+          "cutouts have their own rotation relief and ignore this."
       )
       parser.add_argument(
           "--min-cutout-spacing",
@@ -152,6 +163,8 @@ if __name__ == "__main__":
         config.min_cutout_spacing = args.min_cutout_spacing
       if args.taper_angle is not None:
         config.taper_angle = args.taper_angle
+      if args.flap_clearance is not None:
+        config.flap_clearance = args.flap_clearance
       config.force_linear_positions = args.force_linear_positions
 
       # Handle safety margins - use provided values or keep defaults

@@ -39,11 +39,17 @@ class TrayConfig:
 
   # Cutout and layout options
   cutout_shape: str = 'circle'  # any key of shapes.SHAPES ('circle', 'square')
-  # Wall angle of the cutout in degrees from vertical. None uses the
-  # shape's default (see cutout_generator: 12.5 for circles, 5 for
-  # squares). For a measured base:
-  #   taper_angle = atan((top_size - bottom_size) / (2 * base_height))
+  # Wall angle of the cutout in degrees from vertical; positive narrows
+  # the cutout toward the top. None uses the shape's default (see
+  # cutout_generator: 12.5 for circles, 5 for squares/hexes). For a
+  # measured base:
+  #   taper_angle = atan((bottom_size - top_size) / (2 * base_height))
   taper_angle: float = None
+  # Extra sideways clearance (mm per side) in the flap's portion of
+  # square/hex cutouts, so the closing flap's cutout edge sweeps past the
+  # base instead of clipping it. Circle cutouts have their own revolved
+  # rotation relief and ignore this.
+  flap_clearance: float = 1.0
   min_cutout_spacing: float = 2.0  # Minimum gap (mm) between cutout edges
   is_double_tray: bool = True
   force_linear_positions: bool = False
