@@ -412,3 +412,5 @@ FodyWeavers.xsd
 
 # output
 **/output/**
+# Pytest
+.pytest_cache/

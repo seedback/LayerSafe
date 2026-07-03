@@ -1,0 +1,80 @@
+"""Tests for the pure-math helpers in full_tray_generator: usable-area
+computation and the linear/alternating layout dispatch.
+
+full_tray_generator imports build123d and ocp_vscode at module level, so
+this file is skipped when the CAD dependencies are not installed. The tests
+themselves never build geometry.
+"""
+import pytest
+
+pytest.importorskip("build123d")
+pytest.importorskip("ocp_vscode")
+
+from functions.full_tray_generator import (  # noqa: E402
+    calculate_usable_area,
+    calculate_cutout_positions,
+)
+
+# Default tray parameters.
+WIDTH, DEPTH = 189.5, 66.0
+RAIL_WIDTH = 4.8
+MARGIN = (6.5, 0.8)
+TOL = 0.55
+
+
+@pytest.fixture(scope="module")
+def ua_double():
+  return calculate_usable_area(WIDTH, DEPTH, RAIL_WIDTH, MARGIN, TOL, True)
+
+
+def test_usable_area_double():
+  ua = calculate_usable_area(WIDTH, DEPTH, RAIL_WIDTH, MARGIN, TOL, True)
+  # x: half width minus rail minus x-margin; y: half depth minus y-margin
+  # minus half tolerance, symmetric for a double tray.
+  assert ua['min']['x'] == pytest.approx(-83.45)
+  assert ua['max']['x'] == pytest.approx(83.45)
+  assert ua['min']['y'] == pytest.approx(-31.925)
+  assert ua['max']['y'] == pytest.approx(31.925)
+
+
+def test_usable_area_single_sided_caps_y_at_zero():
+  ua = calculate_usable_area(WIDTH, DEPTH, RAIL_WIDTH, MARGIN, TOL, False)
+  assert ua['min']['y'] == pytest.approx(-31.925)
+  assert ua['max']['y'] == 0
+
+
+def test_dispatch_empty_input(ua_double):
+  assert calculate_cutout_positions(ua_double, [], [], TOL) == []
+
+
+def test_dispatch_small_diameters_use_linear(ua_double):
+  # max diameter <= -min_y (31.925): linear layout, rows stack at same x.
+  positions = calculate_cutout_positions(
+      ua_double, [25.0, 25.0], [0, 0], TOL, is_double_tray=True)
+  assert [p['x'] for p in positions] == pytest.approx([0.0, 0.0])
+  assert [p['flipped'] for p in positions] == [False, True]
+
+
+def test_dispatch_large_diameters_use_alternating(ua_double):
+  # max diameter > -min_y: alternating layout, nested at opposite corners.
+  positions = calculate_cutout_positions(
+      ua_double, [40.0, 40.0], [0, 0], TOL, is_double_tray=True)
+  assert positions[0]['x'] == pytest.approx(-63.45)
+  assert positions[1]['x'] == pytest.approx(63.45)
+  assert [p['flipped'] for p in positions] == [False, True]
+
+
+def test_dispatch_force_linear_overrides_alternating(ua_double):
+  positions = calculate_cutout_positions(
+      ua_double, [40.0, 40.0], [0, 0], TOL, is_double_tray=True,
+      force_linear_positions=True)
+  assert [p['x'] for p in positions] == pytest.approx([0.0, 0.0])
+  assert [p['flipped'] for p in positions] == [False, True]
+
+
+def test_dispatch_single_sided_always_linear():
+  ua = calculate_usable_area(WIDTH, DEPTH, RAIL_WIDTH, MARGIN, TOL, False)
+  positions = calculate_cutout_positions(
+      ua, [40.0, 40.0], [0, 0], TOL, is_double_tray=False)
+  assert all(p['flipped'] is False for p in positions)
+  assert all(p['y'] == pytest.approx(-11.925) for p in positions)
