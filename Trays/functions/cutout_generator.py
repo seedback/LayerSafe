@@ -58,8 +58,13 @@ def generate_cutout(
     edge_offseter = normal_base.part.translate((0,edge_offset,0))
     normal_base.part = normal_base.part.intersect(edge_offseter)
 
-  if isinstance(normal_base.part, ShapeList):
-    normal_base.part = normal_base.part[0]
+  # For some sizes (e.g. 24.7) the edge_offset self-intersection comes
+  # back as a dimension-less Compound, which would break the lip adjustor
+  # union below.
+  normal_base.part = _unwrap_boolean_result(normal_base.part)
+  if normal_base.part is None:
+    raise ValueError(
+        f"edge_offset={edge_offset} produced an empty cutout for size={size}")
 
   with BuildPart() as lip_adjustor_base:
     with Locations((0, -size*0.75, -epsilon*2)):
@@ -92,17 +97,13 @@ def generate_cutout(
           align=(Align.CENTER, Align.CENTER, Align.MIN),
       )
 
-  lip_adjustor_base.part = lip_adjustor_base.part.intersect(lip_box.part)
+  lip_adjustor_base.part = _unwrap_boolean_result(
+      lip_adjustor_base.part.intersect(lip_box.part))
 
-  # Unwrap ShapeList or dim-less Compound to get the underlying Solid
-  if isinstance(lip_adjustor_base.part, ShapeList):
-    lip_adjustor_base.part = lip_adjustor_base.part[0]
-  elif isinstance(lip_adjustor_base.part, Compound) and lip_adjustor_base.part._dim is None:
-    children = list(lip_adjustor_base.part)
-    if children:
-      lip_adjustor_base.part = children[0]
-
-  normal_base.part += lip_adjustor_base.part
+  # The intersection can be empty (small sizes with a nonzero
+  # edge_offset); in that case there is simply no lip to adjust for.
+  if lip_adjustor_base.part is not None:
+    normal_base.part += lip_adjustor_base.part
 
   # Create flattener
   with BuildPart() as flattener:
@@ -110,11 +111,10 @@ def generate_cutout(
         align=(Align.CENTER, Align.CENTER, Align.MIN))
 
   # Subtract flattener using boolean operation
-  normal_base.part = normal_base.part.intersect(flattener.part)
-
-  # Convert normal_base from ShapeList to Shape if necessary
-  if isinstance(normal_base.part, ShapeList):
-    normal_base.part = normal_base.part[0]
+  normal_base.part = _unwrap_boolean_result(
+      normal_base.part.intersect(flattener.part))
+  if normal_base.part is None:
+    raise ValueError(f"Flattening produced an empty cutout for size={size}")
 
   return Compound([normal_base.part])
 
@@ -124,21 +124,23 @@ def generate_cutout(
 
 def _unwrap_boolean_result(shape):
   """Boolean ops occasionally return a ShapeList or a dimension-less
-  Compound instead of a plain solid, which then breaks follow-up unions.
-  Unwrap to the underlying solid(s), unioning if there are several;
-  returns None for an empty result."""
+  Compound instead of a plain solid, which then breaks follow-up unions
+  (`Shape.__add__` compares class-level `_dim`, and plain Compound's is
+  None). Unwrap to the underlying solid(s), rewrapping as a Part if there
+  are several; returns None for an empty result."""
+  if shape is None:
+    return None
   if isinstance(shape, ShapeList):
-    children = list(shape)
+    solids = [solid for item in shape for solid in item.solids()]
   elif isinstance(shape, Compound) and shape._dim is None:
-    children = list(shape)
+    solids = list(shape.solids())
   else:
     return shape
-  if not children:
+  if not solids:
     return None
-  result = children[0]
-  for child in children[1:]:
-    result = result + child
-  return result
+  if len(solids) == 1:
+    return solids[0]
+  return Part(Compound(solids).wrapped)
 
 
 def _prismatic_cutout(
