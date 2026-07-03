@@ -7,17 +7,54 @@ import math
 
 import pytest
 
-from shapes import SHAPES, get_shape, CircleShape, SquareShape, HexShape
+from shapes import (SHAPES, get_shape, parse_size, format_size,
+                    CircleShape, SquareShape, HexShape, OvalShape)
 
 
 def test_registry_contains_all_shapes():
-  assert set(SHAPES) >= {'circle', 'square', 'hex'}
+  assert set(SHAPES) >= {'circle', 'square', 'hex', 'oval'}
   assert isinstance(SHAPES['circle'], CircleShape)
   assert isinstance(SHAPES['square'], SquareShape)
   assert isinstance(SHAPES['hex'], HexShape)
+  assert isinstance(SHAPES['oval'], OvalShape)
   # Registry keys match the shapes' own names (used for --cutout-shape).
   for name, shape in SHAPES.items():
     assert shape.name == name
+
+
+def test_parse_size():
+  assert parse_size('31.6') == 31.6
+  assert parse_size('60x35') == (60.0, 35.0)
+  assert parse_size('60X35') == (60.0, 35.0)
+  with pytest.raises(ValueError, match="WIDTHxDEPTH"):
+    parse_size('60x35x2')
+  with pytest.raises(ValueError, match="WIDTHxDEPTH"):
+    parse_size('60x')
+  with pytest.raises(ValueError):
+    parse_size('big')
+
+
+def test_format_size_roundtrip():
+  assert format_size(31.6) == '31.6'
+  assert format_size((60.0, 35.0)) == '60.0x35.0'
+
+
+def test_validate_size():
+  get_shape('circle').validate_size(31.6)          # no raise
+  get_shape('oval').validate_size((60.0, 35.0))    # no raise
+  with pytest.raises(ValueError, match="single size number"):
+    get_shape('circle').validate_size((60.0, 35.0))
+  with pytest.raises(ValueError, match="WIDTHxDEPTH"):
+    get_shape('oval').validate_size(31.6)
+
+
+def test_oval_footprint_and_layout_sizes():
+  oval = get_shape('oval')
+  assert oval.footprint((60.0, 35.0), 0.55) == pytest.approx((60.55, 35.55))
+  assert oval.layout_sizes((60.0, 35.0), 0.55) == (60.0, 35.0)
+  # Circumradius covers the long axis.
+  assert oval.circumradius((60.0, 35.0), 0.55) == pytest.approx(30.275)
+  assert oval.supports_alternating is False
 
 
 def test_get_shape_unknown_name_lists_available():

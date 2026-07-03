@@ -93,6 +93,8 @@ def generate_full_tray(
     config = TrayConfig()
 
   shape = get_shape(config.cutout_shape)
+  for size in sizes:
+    shape.validate_size(size)
 
   storage_key = ((config.total_width, config.total_depth),
                  config.is_double_tray)

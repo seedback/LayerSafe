@@ -10,7 +10,7 @@ LayerSafe generates parametric 3D tray designs featuring:
 - Adjustable dimensions (width and depth)
 - Hinged flap mechanisms for opening/closing
 - Customizable rails and base structure
-- Cutouts for **circular, square, and hexagonal** bases, mixed sizes per tray
+- Cutouts for **circular, square, hexagonal, and oval** bases, mixed sizes per tray
 - Adjustable cutout wall angle (taper) to match sloped base edges
 - Flap clearance so closed flaps rotate past seated bases
 - Support for single or double tray configurations
@@ -59,8 +59,11 @@ Each size is one base. What "size" means depends on the cutout shape:
 | Circle (default) | `circle` | Base diameter |
 | Square | `square` | Side length |
 | Hexagon | `hex` | Across the flats |
+| Oval | `oval` | `WIDTHxDEPTH` pair, e.g. `60x35` |
 
 Hex cutouts are oriented with their flats facing the tray edges (corners pointing sideways), so measure your hex bases across the flats—the natural caliper measurement.
+
+Oval sizes are given in tray orientation: width runs along the tray, depth front-to-back. If an oval is too deep for a row, swap the numbers (e.g. `35x60`) to stand it upright.
 
 > **⚠️ Important:** Base sizes should be measured as accurately as possible. Precision down to **0.1mm** is recommended for proper fit. Use quality calipers with good accuracy (±0.1mm or better) to measure your bases before generating the tray.
 
@@ -81,15 +84,20 @@ Generate a tray for five 29.8mm (across flats) hex bases:
 python Trays/tray_generator.py 29.8 29.8 29.8 29.8 29.8 --cutout-shape hex
 ```
 
+Generate a tray for oval bases (60mm wide, 30mm deep):
+```bash
+python Trays/tray_generator.py 60x30 60x30 45x25 --cutout-shape oval
+```
+
 #### Available Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--width` | float | 189.5 | Total tray width in mm |
 | `--depth` | float | 66.0 | Total tray depth in mm |
-| `--cutout-shape` | choice | circle | Cutout shape: `circle`, `square`, or `hex` |
-| `--taper-angle` | float | shape default | Wall angle of the cutouts in degrees from vertical (default: 12.5 for circle, 5 for square/hex). See [Matching sloped bases](#matching-sloped-bases) |
-| `--flap-clearance` | float | 1.0 | Extra sideways clearance (mm per side) in the flap's part of square/hex cutouts so the flap rotates closed past seated bases. Circle cutouts have their own rotation relief and ignore this |
+| `--cutout-shape` | choice | circle | Cutout shape: `circle`, `square`, `hex`, or `oval` |
+| `--taper-angle` | float | shape default | Wall angle of the cutouts in degrees from vertical (default: 12.5 for circle, 5 for square/hex/oval). See [Matching sloped bases](#matching-sloped-bases) |
+| `--flap-clearance` | float | 1.0 | Extra sideways clearance (mm per side) in the flap's part of square/hex/oval cutouts so the flap rotates closed past seated bases. Circle cutouts have their own rotation relief and ignore this |
 | `--tolerance` | float | 0.55 | Fit tolerance added around each base (mm) |
 | `--safety-margin-x` | float | 6.5 | Horizontal margin from edges (mm) |
 | `--safety-margin-y` | float | 0.8 | Vertical margin from edges (mm) |

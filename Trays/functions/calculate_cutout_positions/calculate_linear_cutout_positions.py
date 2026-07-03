@@ -1,5 +1,9 @@
 # %%
 
+# Minimum clearance (mm) between the physical edges of front- and
+# back-row cutouts (matches the alternating layout's MIN_EDGE_GAP).
+MIN_ROW_GAP = 0.4
+
 
 def _line_fits(line_total, n_in_line, new_x_size, max_width, tolerance, min_spacing):
   """Check if adding new_x_size to a line still fits with minimum spacing."""
@@ -104,10 +108,57 @@ def calculate_linear_cutout_positions(
       pos['flipped'] = True
 
     positions = x_positions + y_positions
+
+    _validate_row_overlap(usable_area, x_positions, y_positions,
+                          layout_sizes, line_one_indices, line_two_indices,
+                          tolerance)
   else:
     positions = x_positions
 
+  # A base deeper than the usable area cannot fit at all.
+  usable_depth = usable_area['max']['y'] - usable_area['min']['y']
+  for x_size, y_size in layout_sizes:
+    if y_size > usable_depth + 0.001:
+      raise ValueError(
+          f"A base of depth {y_size}mm is too deep for the tray "
+          f"(usable depth: {usable_depth:.1f}mm).\n"
+          "Use a deeper tray, or for oval bases swap the size to "
+          "DEPTHxWIDTH so the long axis runs along the tray."
+      )
+
   return positions
+
+
+def _validate_row_overlap(usable_area, front_positions, back_positions,
+                          layout_sizes, front_indices, back_indices,
+                          tolerance):
+  """The front and back rows share the tray's middle: two cutouts resting
+  on opposite edges collide when their combined depth exceeds the usable
+  depth AND they overlap along x. Deep bases are fine as long as the two
+  rows interleave in x."""
+  usable_depth = usable_area['max']['y'] - usable_area['min']['y']
+
+  for front, fi in zip(front_positions, front_indices):
+    for back, bi in zip(back_positions, back_indices):
+      # Vertical clearance between the physical holes (tolerance eats
+      # tolerance/2 into the gap from each side). The standard tray runs
+      # opposing rows as close as ~0.1mm by design, so only an actual
+      # overlap counts.
+      y_gap = (usable_depth - layout_sizes[fi][1] - layout_sizes[bi][1]
+               - tolerance)
+      if y_gap >= -0.001:
+        continue
+      # Rows are too deep to stack: only allowed if they don't share x.
+      front_half = (layout_sizes[fi][0] + tolerance) / 2
+      back_half = (layout_sizes[bi][0] + tolerance) / 2
+      x_gap = abs(back['x'] - front['x']) - front_half - back_half
+      if x_gap < MIN_ROW_GAP:
+        raise ValueError(
+            "Bases on the front and back rows overlap in the middle of "
+            "the tray.\n"
+            "The tray is too shallow to stack these bases: use a deeper "
+            "tray, remove a base, or use --single-sided."
+        )
 
 
 def calculate_line_positions(

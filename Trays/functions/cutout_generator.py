@@ -172,9 +172,12 @@ def _prismatic_cutout(
     with BuildSketch():
       profile_fn()
     extrude(amount=PRISM_EXTRUDE_HEIGHT, taper=taper)
-    # Add the slide path for the base (same approach as circular cutout)
-    cross_section_result = section(normal_base.part, Plane.XZ)
-    extrude(cross_section_result, slide_path_length)
+    # Add the slide path for the base (same approach as circular cutout).
+    # Skipped for shallow bases whose front already sits under the flap
+    # (a negative length would extrude backwards into the pocket).
+    if slide_path_length > 0:
+      cross_section_result = section(normal_base.part, Plane.XZ)
+      extrude(cross_section_result, slide_path_length)
   normal_base.part = normal_base.part.translate((0, 0, -epsilon))
 
   if flap_clearance > 0:
@@ -279,6 +282,46 @@ def generate_hex_cutout(
                          + edge_margin),
       flatten_width=across_corners + tolerance * 2,
       flatten_depth=size + tolerance * 2,
+      taper_angle=taper_angle,
+      flap_clearance=flap_clearance,
+      epsilon=epsilon,
+  )
+
+
+def generate_oval_cutout(
+    size,
+    tolerance=0.55,
+    flap_depth=11.8,
+    hinge_diameter=27.7,
+    flap_center_gap=0.2,
+    edge_margin=0.8,
+    edge_adjust=0,
+    edge_offset=0,
+    taper_angle=None,
+    flap_clearance=0,
+    epsilon=0.001
+):
+  """Build the negative shape for one oval (elliptical) base cutout.
+
+  `size` is a (width, depth) pair: width runs along the tray (x), depth
+  front-to-back (y). taper_angle is the wall angle in degrees from
+  vertical (None uses PRISM_TAPER); flap_clearance widens the flap's part
+  of the cutout so it can rotate closed past a seated base. edge_adjust
+  (--edge-adjusts) and edge_offset (--edge-offsets) are accepted for
+  signature parity with generate_cutout; the oval cutout geometry does
+  not use them.
+  """
+  size_x, size_y = size
+  half_depth = size_y / 2 + tolerance / 2
+
+  return _prismatic_cutout(
+      profile_fn=lambda: Ellipse((size_x + tolerance) / 2,
+                                 (size_y + tolerance) / 2,
+                                 align=(Align.CENTER, Align.CENTER)),
+      slide_path_length=(half_depth - flap_depth - flap_center_gap
+                         + edge_margin),
+      flatten_width=size_x + tolerance * 2,
+      flatten_depth=size_y + tolerance * 2,
       taper_angle=taper_angle,
       flap_clearance=flap_clearance,
       epsilon=epsilon,

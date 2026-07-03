@@ -5,7 +5,7 @@ import argparse
 import os
 from collections import Counter
 from functions.full_tray_generator import generate_full_tray
-from functions.shapes import SHAPES
+from functions.shapes import SHAPES, parse_size, format_size
 from functions.tray_config import TrayConfig
 
 
@@ -49,11 +49,19 @@ if __name__ == "__main__":
           + "Example: \"python tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4 --tolerance 0.6\"\n",
           formatter_class=argparse.RawDescriptionHelpFormatter
       )
+      def size_argument(token):
+        try:
+          return parse_size(token)
+        except ValueError as e:
+          raise argparse.ArgumentTypeError(str(e))
+
       parser.add_argument(
           "sizes",
-          type=float,
+          type=size_argument,
           nargs="+",
-          help="Space-separated list of base sizes: circle diameter or square side length, in mm (e.g., 31.6 31.6 25.4)"
+          help="Space-separated list of base sizes in mm: circle diameter, "
+          "square side length, or hex across-flats (e.g., 31.6 31.6 25.4). "
+          "Oval bases take WIDTHxDEPTH pairs (e.g., 60x35)."
       )
       parser.add_argument(
           "--width",
@@ -189,7 +197,11 @@ if __name__ == "__main__":
 
     # Create a summary of sizes (count how many of each size)
     size_count = Counter(sizes)
-    size_summary = sorted(size_count.items())
+    # Sort key tuples so scalar and (width, depth) pair sizes both order
+    size_summary = sorted(
+        size_count.items(),
+        key=lambda item: item[0] if isinstance(item[0], tuple)
+        else (item[0],))
 
     # Generate filename from size summary if not provided
     if custom_output:
@@ -197,7 +209,7 @@ if __name__ == "__main__":
     else:
       # Create filename like "tray_31.6x10_25.4x5" from the size summary
       filename_parts = [
-          f"{count}x{size}mm" for size, count in size_summary]
+          f"{count}x{format_size(size)}mm" for size, count in size_summary]
       output_filename = f"tray_{'_'.join(filename_parts)}"
 
     print("Generating", output_filename, flush=True)

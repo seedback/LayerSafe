@@ -65,16 +65,30 @@ def test_dispatch_large_sizes_use_alternating(ua_double):
 
 
 def test_dispatch_force_linear_overrides_alternating(ua_double):
+  # 33mm > 31.925 would normally pick the alternating layout; the force
+  # flag stacks the bases on straight rows instead (33 + 25 still fits
+  # the tray depth).
   positions = calculate_cutout_positions(
-      ua_double, [40.0, 40.0], [0, 0], TOL, is_double_tray=True,
+      ua_double, [33.0, 25.0], [0, 0], TOL, is_double_tray=True,
       force_linear_positions=True)
   assert [p['x'] for p in positions] == pytest.approx([0.0, 0.0])
   assert [p['flipped'] for p in positions] == [False, True]
 
 
+def test_dispatch_force_linear_rejects_overlapping_rows(ua_double):
+  # Forcing two 40mm bases onto stacked rows of a 66mm tray would merge
+  # their holes in the middle; the layout must refuse.
+  with pytest.raises(ValueError, match="front and back rows overlap"):
+    calculate_cutout_positions(
+        ua_double, [40.0, 40.0], [0, 0], TOL, is_double_tray=True,
+        force_linear_positions=True)
+
+
 def test_dispatch_single_sided_always_linear():
-  ua = calculate_usable_area(WIDTH, DEPTH, RAIL_WIDTH, MARGIN, TOL, False)
+  # Single-sided trays have no back row, so the linear layout is used
+  # even for large bases (given enough depth, e.g. --depth 132).
+  ua = calculate_usable_area(WIDTH, 132.0, RAIL_WIDTH, MARGIN, TOL, False)
   positions = calculate_cutout_positions(
       ua, [40.0, 40.0], [0, 0], TOL, is_double_tray=False)
   assert all(p['flipped'] is False for p in positions)
-  assert all(p['y'] == pytest.approx(-11.925) for p in positions)
+  assert all(p['y'] == pytest.approx(-44.925) for p in positions)

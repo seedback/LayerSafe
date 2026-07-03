@@ -37,11 +37,19 @@ def test_single_sided_row_is_centered_and_evenly_spaced():
 
 def test_single_item_is_centered():
   positions = calculate_linear_cutout_positions(
-      UA_SINGLE, [40.0], [0], TOL, is_double_tray=False)
+      UA_SINGLE, [30.0], [0], TOL, is_double_tray=False)
 
   assert len(positions) == 1
   assert positions[0]['x'] == pytest.approx(0.0)
-  assert positions[0]['y'] == pytest.approx(-11.925)  # min_y + 20
+  assert positions[0]['y'] == pytest.approx(-16.925)  # min_y + 15
+
+
+def test_single_sided_base_deeper_than_tray_raises():
+  # A 40mm base on a default-depth single-sided tray would overhang the
+  # tray's open back edge (usable depth 31.925mm); needs --depth.
+  with pytest.raises(ValueError, match="too deep"):
+    calculate_linear_cutout_positions(
+        UA_SINGLE, [40.0], [0], TOL, is_double_tray=False)
 
 
 def test_empty_input_returns_empty_list():
@@ -72,7 +80,7 @@ def test_double_tray_row_assignment_and_edge_offsets():
   inward (+y on front row, -y on back row)."""
   positions = calculate_linear_cutout_positions(
       UA_DOUBLE,
-      [25.4, 25.4, 31.6, 40.0],
+      [25.4, 25.4, 31.6, 30.0],
       [0.5, 0.6, 0.7, 0.8],
       TOL,
       is_double_tray=True)
@@ -82,8 +90,8 @@ def test_double_tray_row_assignment_and_edge_offsets():
       {'x': -32.233333, 'y': -18.725, 'size': 25.4, 'flipped': False},
       {'x': 32.233333, 'y': -18.625, 'size': 25.4, 'flipped': False},
       # back row: input indices 2 and 3, y = 31.925 - d/2 - offset
-      {'x': -36.066667, 'y': 15.425, 'size': 31.6, 'flipped': True},
-      {'x': 31.866667, 'y': 11.125, 'size': 40.0, 'flipped': True},
+      {'x': -32.733333, 'y': 15.425, 'size': 31.6, 'flipped': True},
+      {'x': 33.533333, 'y': 16.125, 'size': 30.0, 'flipped': True},
   ]
   assert len(positions) == len(expected)
   for got, want in zip(positions, expected):
@@ -175,6 +183,43 @@ def test_layout_sizes_widen_spacing_and_set_y():
       UA_SINGLE, [30.0, 30.0], [0, 0], TOL, is_double_tray=False)
   assert (positions[1]['x'] - positions[0]['x']
           > narrow[1]['x'] - narrow[0]['x'])
+
+
+def test_stacked_deep_bases_raise():
+  """Two 40mm bases resting on opposite edges of a 66mm tray overlap by
+  ~16mm in the middle at the same x. This used to be silently accepted
+  (producing merged, unusable holes)."""
+  with pytest.raises(ValueError, match="front and back rows overlap"):
+    calculate_linear_cutout_positions(
+        UA_DOUBLE, [40.0, 40.0], [0, 0], TOL, is_double_tray=True)
+
+
+def test_deep_bases_allowed_when_rows_interleave_in_x():
+  # On a wide-enough tray, deep bases may exceed half the depth as long
+  # as front and back rows do not share x.
+  wide = {'min': {'x': -120.0, 'y': -31.925}, 'max': {'x': 120.0, 'y': 31.925}}
+  positions = calculate_linear_cutout_positions(
+      wide, [40.0, 40.0, 40.0], [0] * 3, TOL, is_double_tray=True)
+
+  front_xs = sorted(p['x'] for p in positions if not p['flipped'])
+  back_xs = [p['x'] for p in positions if p['flipped']]
+  assert len(front_xs) == 2 and len(back_xs) == 1
+  # back base sits between the two front bases with real clearance
+  assert front_xs[0] + 20.275 < back_xs[0] - 20.275
+  assert back_xs[0] + 20.275 < front_xs[1] - 20.275
+
+
+def test_oval_pair_sizes_flow_through_layout():
+  # Oval bases carry (width, depth) pairs in 'size'; layout_sizes drive
+  # both packing and y resting.
+  positions = calculate_linear_cutout_positions(
+      UA_SINGLE, [(60.0, 30.0), (60.0, 30.0)], [0, 0], TOL,
+      is_double_tray=False, layout_sizes=[(60.0, 30.0), (60.0, 30.0)])
+
+  assert all(p['size'] == (60.0, 30.0) for p in positions)
+  assert all(p['y'] == pytest.approx(-31.925 + 15.0) for p in positions)
+  gap = (positions[1]['x'] - positions[0]['x']) - 60.0
+  assert gap >= MIN_SPACING - 1e-9
 
 
 def test_line_fits_boundary_is_inclusive():
