@@ -6,14 +6,14 @@ from ocp_vscode import *
 
 if __name__ == "__main__":
   from tray_config import TrayConfig
+  from shapes import get_shape
   from base_tray_generator import generate_base_tray
-  from cutout_generator import generate_cutout, generate_square_cutout
   from calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
   from calculate_cutout_positions.calculate_alternating_cutout_positions import calculate_alternating_cutout_positions
 else:
   from .tray_config import TrayConfig
+  from .shapes import get_shape
   from .base_tray_generator import generate_base_tray
-  from .cutout_generator import generate_cutout, generate_square_cutout
   from .calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
   from .calculate_cutout_positions.calculate_alternating_cutout_positions import calculate_alternating_cutout_positions
 
@@ -49,24 +49,24 @@ def calculate_usable_area(
 
 def calculate_cutout_positions(
     usable_area,
-    diameters,
+    sizes,
     edge_offsets,
     tolerance,
     is_double_tray=False,
     force_linear_positions=False,
     min_cutout_spacing=2.0,
 ):
-  if len(diameters) == 0:
+  if len(sizes) == 0:
     return []
   positions = []
-  max_diameter = max(diameters)
-  if max_diameter <= -usable_area['min']['y'] or not is_double_tray or force_linear_positions:
+  max_size = max(sizes)
+  if max_size <= -usable_area['min']['y'] or not is_double_tray or force_linear_positions:
     positions = calculate_linear_cutout_positions(
-        usable_area, diameters, edge_offsets, tolerance, is_double_tray,
+        usable_area, sizes, edge_offsets, tolerance, is_double_tray,
         min_spacing=min_cutout_spacing)
   else:
     positions = calculate_alternating_cutout_positions(
-        usable_area, diameters, edge_offsets, tolerance)
+        usable_area, sizes, edge_offsets, tolerance)
 
   return positions
 
@@ -74,31 +74,35 @@ def calculate_cutout_positions(
 
 
 def generate_full_tray(
-    diameters,
+    sizes,
     config=None,
     edge_offsets=None,
     edge_adjusts=None,
 ):
-  """Generate a tray with cutouts for the given base diameters.
+  """Generate a tray with cutouts for the given base sizes.
 
-  Geometry and layout settings come from `config` (a TrayConfig); per-base
-  fine-tuning comes from edge_offsets / edge_adjusts, which are padded with
-  zeros to match the length of `diameters`.
+  Each entry in `sizes` is one base: the diameter for circular cutouts,
+  the side length for square ones (see functions/shapes.py). Geometry and
+  layout settings come from `config` (a TrayConfig); per-base fine-tuning
+  comes from edge_offsets / edge_adjusts, which are padded with zeros to
+  match the length of `sizes`.
   """
   if config is None:
     config = TrayConfig()
 
+  shape = get_shape(config.cutout_shape)
+
   storage_key = ((config.total_width, config.total_depth),
                  config.is_double_tray)
 
-  # Pad edge_offsets with zeros to match diameters length
+  # Pad edge_offsets with zeros to match sizes length
   edge_offsets = list(edge_offsets) if edge_offsets else []
-  while len(edge_offsets) < len(diameters):
+  while len(edge_offsets) < len(sizes):
     edge_offsets.append(0)
 
-  # Pad edge_adjusts with zeros to match diameters length
+  # Pad edge_adjusts with zeros to match sizes length
   edge_adjusts = list(edge_adjusts) if edge_adjusts else []
-  while len(edge_adjusts) < len(diameters):
+  while len(edge_adjusts) < len(sizes):
     edge_adjusts.append(0)
 
   # Create a base tray if one of the given dimmension doesn't exist
@@ -116,25 +120,21 @@ def generate_full_tray(
       config.is_double_tray,
   )
 
-  # Square cutouts must use linear positioning: the alternating layout nests
-  # bases using circle-based touch math, which underestimates a square's
-  # diagonal footprint and can overlap adjacent squares at their corners.
+  # Shapes that cannot guarantee clearance under the alternating layout's
+  # nesting math (see functions/shapes.py) are kept on the linear layout.
   use_linear_positions = (config.force_linear_positions
-                          or config.cutout_shape == 'square')
+                          or not shape.supports_alternating)
   positions = calculate_cutout_positions(
-      usable_area, diameters, edge_offsets, config.tolerance,
+      usable_area, sizes, edge_offsets, config.tolerance,
       config.is_double_tray,
       force_linear_positions=use_linear_positions,
       min_cutout_spacing=config.min_cutout_spacing)
 
   cutouts_list = []
 
-  cutout_fn = (generate_square_cutout if config.cutout_shape == 'square'
-               else generate_cutout)
-
   for i, position in enumerate(positions):
-    cutout = cutout_fn(
-        position['diameter'],
+    cutout = shape.build(
+        position['size'],
         tolerance=config.tolerance,
         flap_depth=config.flap_depth,
         hinge_diameter=config.hinge_diameter,
@@ -142,6 +142,7 @@ def generate_full_tray(
         edge_margin=config.safety_margin[1],
         edge_adjust=edge_adjusts[i],
         edge_offset=edge_offsets[i],
+        taper_angle=config.taper_angle,
         epsilon=config.epsilon,
     )
 

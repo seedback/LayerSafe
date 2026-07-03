@@ -5,6 +5,7 @@ import argparse
 import os
 from collections import Counter
 from functions.full_tray_generator import generate_full_tray
+from functions.shapes import SHAPES
 from functions.tray_config import TrayConfig
 
 
@@ -15,7 +16,7 @@ from functions.tray_config import TrayConfig
 #   config = TrayConfig(total_width=200, cutout_shape='circle')
 config = TrayConfig()
 
-diameters = [24.7, 49.6, 39.2, 49.6, 24.7, ]
+sizes = [24.7, 49.6, 39.2, 49.6, 24.7, ]
 edge_offsets = []
 edge_adjusts = []
 
@@ -38,21 +39,21 @@ if __name__ == "__main__":
     # Detect if running in Jupyter/IPython
     is_jupyter = 'ipykernel' in sys.argv[0] or 'jupyter' in sys.argv[0].lower()
 
-    # Check if running from command line (has diameters argument) and NOT in Jupyter
+    # Check if running from command line (has sizes argument) and NOT in Jupyter
     if len(sys.argv) > 1 and not is_jupyter:
       parser = argparse.ArgumentParser(
           description="Generate a tray with custom base cutouts\n"
-          + "Usage:   \"python tray_generator.py [diameters] [options]\"\n"
+          + "Usage:   \"python tray_generator.py [sizes] [options]\"\n"
           + "Example: \"python tray_generator.py 24.7 24.7 24.7 24.7 24.7 24.7\"\n"
           + "Example: \"python tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4\"\n"
           + "Example: \"python tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4 --tolerance 0.6\"\n",
           formatter_class=argparse.RawDescriptionHelpFormatter
       )
       parser.add_argument(
-          "diameters",
+          "sizes",
           type=float,
           nargs="+",
-          help="Space-separated list of base diameters (e.g., 31.6 31.6 25.4)"
+          help="Space-separated list of base sizes: circle diameter or square side length, in mm (e.g., 31.6 31.6 25.4)"
       )
       parser.add_argument(
           "--width",
@@ -70,7 +71,7 @@ if __name__ == "__main__":
           "--output",
           type=str,
           default=None,
-          help="Output file path without extension (default: auto-generated from diameter summary)"
+          help="Output file path without extension (default: auto-generated from size summary)"
       )
       parser.add_argument(
           "--safety-margin-x",
@@ -113,8 +114,17 @@ if __name__ == "__main__":
           "--cutout-shape",
           type=str,
           default=None,
-          choices=["circle", "square"],
+          choices=sorted(SHAPES),
           help=f"Cutout shape (default: {config.cutout_shape})"
+      )
+      parser.add_argument(
+          "--taper-angle",
+          type=float,
+          default=None,
+          help="Wall angle of the cutouts in degrees from vertical "
+          "(default: 12.5 for circle, 5 for square). To match a measured "
+          "base: atan((top_size - bottom_size) / (2 * base_height)), "
+          "e.g. a 25mm->27mm base 3mm tall needs atan(2/6) = 18.4 degrees."
       )
       parser.add_argument(
           "--min-cutout-spacing",
@@ -131,7 +141,7 @@ if __name__ == "__main__":
       args = parser.parse_args()
 
       # Override config defaults with command line arguments
-      diameters = args.diameters
+      sizes = args.sizes
       config.total_width = args.width
       config.total_depth = args.depth
       custom_output = args.output
@@ -140,6 +150,8 @@ if __name__ == "__main__":
         config.cutout_shape = args.cutout_shape
       if args.min_cutout_spacing is not None:
         config.min_cutout_spacing = args.min_cutout_spacing
+      if args.taper_angle is not None:
+        config.taper_angle = args.taper_angle
       config.force_linear_positions = args.force_linear_positions
 
       # Handle safety margins - use provided values or keep defaults
@@ -162,24 +174,24 @@ if __name__ == "__main__":
       # No arguments - use defaults
       custom_output = None
 
-    # Create a summary of diameters (count how many of each size)
-    diameter_count = Counter(diameters)
-    diameter_summary = sorted(diameter_count.items())
+    # Create a summary of sizes (count how many of each size)
+    size_count = Counter(sizes)
+    size_summary = sorted(size_count.items())
 
-    # Generate filename from diameter summary if not provided
+    # Generate filename from size summary if not provided
     if custom_output:
       output_filename = custom_output
     else:
-      # Create filename like "tray_31.6x10_25.4x5" from the diameter summary
+      # Create filename like "tray_31.6x10_25.4x5" from the size summary
       filename_parts = [
-          f"{count}x{diameter}mm" for diameter, count in diameter_summary]
+          f"{count}x{size}mm" for size, count in size_summary]
       output_filename = f"tray_{'_'.join(filename_parts)}"
 
     print("Generating", output_filename, flush=True)
     sys.stdout.flush()
 
     tray_compound, _ = generate_full_tray(
-        diameters,
+        sizes,
         config,
         edge_offsets=edge_offsets,
         edge_adjusts=edge_adjusts,
@@ -216,17 +228,17 @@ if __name__ == "__main__":
     RED = "\033[91m"
     RESET = "\033[0m"
 
-    # Check for math domain error - usually caused by mixing large and small diameter bases
+    # Check for math domain error - usually caused by mixing large and small size bases
     if "math domain error" in error_message.lower():
       message = ("Cannot fit base configuration.\n"
-          "Mixing large base diameters (32mm+) with small base diameters (<32mm) requires\n"
+          "Mixing large base sizes (32mm+) with small base sizes (<32mm) requires\n"
           "alternating them in the layout. Multiple small bases in a row causes geometric conflicts.\n"
-          "Try: Distribute smaller diameters throughout with larger ones in between.\n"
+          "Try: Distribute smaller sizes throughout with larger ones in between.\n"
           "Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]\n"
           "Try: Setting the flag \"--force-linear-positions\".")
     elif isinstance(e, KeyError) and "flipped" in error_message.lower():
       message = ("System mirrors the geometry of the base cutout for double sided trays.\n"
-          "This usually occurs when only one diameter is provided.\n"
+          "This usually occurs when only one size is provided.\n"
           "Try: Setting the flag \"--single-sided\".\n"
           "(Note: You may then need to set --depth manually. Try --depth 132 for standard size.)")
     elif isinstance(e, ValueError):

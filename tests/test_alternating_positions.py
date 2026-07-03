@@ -32,7 +32,7 @@ def test_two_large_circles_nest_at_opposite_corners():
   assert positions[1]['flipped'] is True
 
 
-def test_five_mixed_diameters_pinned_layout():
+def test_five_mixed_sizes_pinned_layout():
   positions = calculate_alternating_cutout_positions(
       UA_DOUBLE, [24.7, 49.6, 39.2, 49.6, 24.7], [0] * 5, TOL)
 
@@ -47,7 +47,7 @@ def test_five_mixed_diameters_pinned_layout():
   for got, (x, y, d, flipped) in zip(positions, expected):
     assert got['x'] == pytest.approx(x, abs=1e-5)
     assert got['y'] == pytest.approx(y, abs=1e-5)
-    assert got['diameter'] == d
+    assert got['size'] == d
     assert got['flipped'] is flipped
 
 
@@ -66,7 +66,7 @@ def test_redistribution_equalizes_edge_gaps():
     center_dist = ((b['x'] - a['x']) ** 2 + (b['y'] - a['y']) ** 2) ** 0.5
     # Physical clearance between the holes: subtract the toleranced radii.
     gaps.append(center_dist
-                - (a['diameter'] + TOL) / 2 - (b['diameter'] + TOL) / 2)
+                - (a['size'] + TOL) / 2 - (b['size'] + TOL) / 2)
 
   # All consecutive edge-to-edge gaps are equal and respect the validator's
   # 0.4mm minimum.
@@ -75,10 +75,10 @@ def test_redistribution_equalizes_edge_gaps():
     assert gap >= 0.4
 
 
-def test_single_diameter_is_centered():
+def test_single_size_is_centered():
   # Review B4: this path used to rely on a leftover loop variable and
   # subtracted the edge offset; it now adds it (inward), matching the
-  # multi-diameter and linear-layout convention.
+  # multi-size and linear-layout convention.
   positions = calculate_alternating_cutout_positions(
       UA_DOUBLE, [40.0], [0.5], TOL)
 
@@ -88,7 +88,7 @@ def test_single_diameter_is_centered():
   assert positions[0]['flipped'] is False
 
 
-def test_single_diameter_without_edge_offsets():
+def test_single_size_without_edge_offsets():
   # Review B4: an empty edge_offsets list used to raise IndexError here.
   positions = calculate_alternating_cutout_positions(
       UA_DOUBLE, [40.0], [], TOL)

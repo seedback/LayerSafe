@@ -8,24 +8,24 @@ MIN_EDGE_GAP = 0.4    # Minimum gap (mm) between the edges of adjacent cutouts
 
 def calculate_alternating_cutout_positions(
     usable_area,
-    diameters,
+    sizes,
     edge_offsets,
     tolerance
 ):
-  if len(diameters) == 0:
+  if len(sizes) == 0:
     return []
 
-  if len(diameters) == 1:
+  if len(sizes) == 1:
     positions = [{
         'x': 0,
-        'y': usable_area['min']['y'] + diameters[0] / 2
+        'y': usable_area['min']['y'] + sizes[0] / 2
         + _offset(edge_offsets, 0),
-        'diameter': diameters[0],
+        'size': sizes[0],
         'flipped': False,
     }]
   else:
     positions = _calculate_initial_positions(
-        usable_area, diameters, edge_offsets, tolerance)
+        usable_area, sizes, edge_offsets, tolerance)
 
   _validate_positions(usable_area, positions, tolerance)
 
@@ -38,7 +38,7 @@ def _offset(edge_offsets, i):
 
 def _calculate_initial_positions(
     usable_area,
-    diameters,
+    sizes,
     edge_offsets,
     tolerance
 ):
@@ -46,33 +46,33 @@ def _calculate_initial_positions(
   usable_area_total = {
       'x': -usable_area['min']['x'] + usable_area['max']['x'],
       'y': -usable_area['min']['y'] + usable_area['max']['y']}
-  for i, diameter in enumerate(diameters):
+  for i, size in enumerate(sizes):
     if i == 0:
       positions.append({
-          'x': usable_area['min']['x'] + diameter/2,
-          'y': usable_area['min']['y'] + diameter/2 + _offset(edge_offsets, i),
-          'diameter': diameter,
+          'x': usable_area['min']['x'] + size/2,
+          'y': usable_area['min']['y'] + size/2 + _offset(edge_offsets, i),
+          'size': size,
           'flipped': False,
       })
     else:
       last_pos = positions[-1]
       # Nest against the previous cutout using the full (toleranced) hole
       # sizes so the physical holes keep their clearance.
-      hyp = (last_pos['diameter'] + tolerance) / 2 + (diameter + tolerance) / 2
+      hyp = (last_pos['size'] + tolerance) / 2 + (size + tolerance) / 2
       offset = _side_from_hyp(
           hyp, usable_area_total['y'] -
-          last_pos['diameter'] / 2 - diameter / 2)
+          last_pos['size'] / 2 - size / 2)
       is_flipped = not last_pos['flipped']
       # Edge offsets move the cutout inward, away from its resting edge
       # (same convention as the linear layout).
       if is_flipped:
-        y = usable_area['max']['y'] - diameter/2 - _offset(edge_offsets, i)
+        y = usable_area['max']['y'] - size/2 - _offset(edge_offsets, i)
       else:
-        y = usable_area['min']['y'] + diameter/2 + _offset(edge_offsets, i)
+        y = usable_area['min']['y'] + size/2 + _offset(edge_offsets, i)
       positions.append({
           'x': last_pos['x'] + offset,
           'y': y,
-          'diameter': diameter,
+          'size': size,
           'flipped': is_flipped,
       })
 
@@ -85,23 +85,23 @@ def _calculate_initial_positions(
 
 
 def _validate_positions(usable_area, positions, tolerance):
-  # Boundary check. Raw diameters are used on purpose: the usable area
+  # Boundary check. Raw sizes are used on purpose: the usable area
   # already reserves tolerance/2 along y, and the x safety margin absorbs
   # the tolerance overhang, matching the linear layout's convention.
   for pos in positions:
-    left_edge = pos['x'] - pos['diameter'] / 2
-    right_edge = pos['x'] + pos['diameter'] / 2
-    top_edge = pos['y'] + pos['diameter'] / 2
-    bottom_edge = pos['y'] - pos['diameter'] / 2
+    left_edge = pos['x'] - pos['size'] / 2
+    right_edge = pos['x'] + pos['size'] / 2
+    top_edge = pos['y'] + pos['size'] / 2
+    bottom_edge = pos['y'] - pos['size'] / 2
 
     if (left_edge < usable_area['min']['x'] - EDGE_TOLERANCE or
         right_edge > usable_area['max']['x'] + EDGE_TOLERANCE or
         top_edge > usable_area['max']['y'] + EDGE_TOLERANCE or
             bottom_edge < usable_area['min']['y'] - EDGE_TOLERANCE):
       raise ValueError(
-          f"A base of diameter {pos['diameter']}mm does not fit within the "
+          f"A base of size {pos['size']}mm does not fit within the "
           "tray's usable area.\n"
-          "Use a larger tray, remove a diameter from the list, or reduce "
+          "Use a larger tray, remove a size from the list, or reduce "
           "the safety margins."
       )
 
@@ -114,13 +114,13 @@ def _validate_positions(usable_area, positions, tolerance):
       center_distance = math.sqrt(dx*dx + dy*dy)
       edge_distance = (
           center_distance -
-          (positions[i]['diameter'] + tolerance) / 2 -
-          (positions[j]['diameter'] + tolerance) / 2
+          (positions[i]['size'] + tolerance) / 2 -
+          (positions[j]['size'] + tolerance) / 2
       )
       if edge_distance < MIN_EDGE_GAP:
         raise ValueError(
             "Total width of bases is too wide to fit on the tray.\n"
-            + "Remove a diameter from the list and try again."
+            + "Remove a base from the list and try again."
         )
 
 
@@ -132,8 +132,8 @@ def _redistribution_pass(
     return positions, 0
 
   # Fixed boundaries
-  target_first_x = usable_area['min']['x'] + positions[0]['diameter'] / 2
-  target_last_x = usable_area['max']['x'] - positions[-1]['diameter'] / 2
+  target_first_x = usable_area['min']['x'] + positions[0]['size'] / 2
+  target_last_x = usable_area['max']['x'] - positions[-1]['size'] / 2
   target_x_span = target_last_x - target_first_x
 
   # Vertical distances (fixed by alternating pattern)
@@ -155,8 +155,8 @@ def _redistribution_pass(
     """Calculate total x span for a given edge-to-edge gap"""
     total_dx = 0
     for i, dy in enumerate(dy_list):
-      radius_i = (positions[i]['diameter'] + tolerance) / 2
-      radius_next = (positions[i+1]['diameter'] + tolerance) / 2
+      radius_i = (positions[i]['size'] + tolerance) / 2
+      radius_next = (positions[i+1]['size'] + tolerance) / 2
       h = gap + radius_i + radius_next  # Hypotenuse needed for this gap
 
       if h * h < dy * dy:
@@ -183,8 +183,8 @@ def _redistribution_pass(
   # Calculate dx values with best_gap
   dx_list = []
   for i, dy in enumerate(dy_list):
-    radius_i = (positions[i]['diameter'] + tolerance) / 2
-    radius_next = (positions[i+1]['diameter'] + tolerance) / 2
+    radius_i = (positions[i]['size'] + tolerance) / 2
+    radius_next = (positions[i+1]['size'] + tolerance) / 2
     h = best_gap + radius_i + radius_next
     dx = math.sqrt(h * h - dy * dy)
     dx_list.append(dx)

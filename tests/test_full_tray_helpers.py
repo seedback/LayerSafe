@@ -47,16 +47,16 @@ def test_dispatch_empty_input(ua_double):
   assert calculate_cutout_positions(ua_double, [], [], TOL) == []
 
 
-def test_dispatch_small_diameters_use_linear(ua_double):
-  # max diameter <= -min_y (31.925): linear layout, rows stack at same x.
+def test_dispatch_small_sizes_use_linear(ua_double):
+  # max size <= -min_y (31.925): linear layout, rows stack at same x.
   positions = calculate_cutout_positions(
       ua_double, [25.0, 25.0], [0, 0], TOL, is_double_tray=True)
   assert [p['x'] for p in positions] == pytest.approx([0.0, 0.0])
   assert [p['flipped'] for p in positions] == [False, True]
 
 
-def test_dispatch_large_diameters_use_alternating(ua_double):
-  # max diameter > -min_y: alternating layout, nested at opposite corners.
+def test_dispatch_large_sizes_use_alternating(ua_double):
+  # max size > -min_y: alternating layout, nested at opposite corners.
   positions = calculate_cutout_positions(
       ua_double, [40.0, 40.0], [0, 0], TOL, is_double_tray=True)
   assert positions[0]['x'] == pytest.approx(-63.45)

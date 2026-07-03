@@ -29,10 +29,10 @@ def test_single_sided_row_is_centered_and_evenly_spaced():
       UA_SINGLE, [31.6, 31.6, 31.6], [0, 0, 0], TOL, is_double_tray=False)
 
   assert [p['x'] for p in positions] == pytest.approx([-49.9, 0.0, 49.9])
-  # y is always resting on the front edge: min_y + diameter/2
+  # y is always resting on the front edge: min_y + size/2
   assert all(p['y'] == pytest.approx(-16.125) for p in positions)
   assert all(p['flipped'] is False for p in positions)
-  assert all(p['diameter'] == 31.6 for p in positions)
+  assert all(p['size'] == 31.6 for p in positions)
 
 
 def test_single_item_is_centered():
@@ -79,22 +79,22 @@ def test_double_tray_row_assignment_and_edge_offsets():
 
   expected = [
       # front row: input indices 0 and 1, y = -31.925 + d/2 + offset
-      {'x': -32.233333, 'y': -18.725, 'diameter': 25.4, 'flipped': False},
-      {'x': 32.233333, 'y': -18.625, 'diameter': 25.4, 'flipped': False},
+      {'x': -32.233333, 'y': -18.725, 'size': 25.4, 'flipped': False},
+      {'x': 32.233333, 'y': -18.625, 'size': 25.4, 'flipped': False},
       # back row: input indices 2 and 3, y = 31.925 - d/2 - offset
-      {'x': -36.066667, 'y': 15.425, 'diameter': 31.6, 'flipped': True},
-      {'x': 31.866667, 'y': 11.125, 'diameter': 40.0, 'flipped': True},
+      {'x': -36.066667, 'y': 15.425, 'size': 31.6, 'flipped': True},
+      {'x': 31.866667, 'y': 11.125, 'size': 40.0, 'flipped': True},
   ]
   assert len(positions) == len(expected)
   for got, want in zip(positions, expected):
     assert got['x'] == pytest.approx(want['x'], abs=1e-5)
     assert got['y'] == pytest.approx(want['y'], abs=1e-5)
-    assert got['diameter'] == want['diameter']
+    assert got['size'] == want['size']
     assert got['flipped'] is want['flipped']
 
 
 def test_short_edge_offsets_list_is_safe():
-  """Review B8 (fixed): an edge_offsets list shorter than the diameters list
+  """Review B8 (fixed): an edge_offsets list shorter than the sizes list
   used to IndexError on the back row (guard checked the wrong length).
   Missing offsets are now treated as 0."""
   positions = calculate_linear_cutout_positions(
@@ -120,18 +120,18 @@ def test_line_positions_symmetric_margins_and_tolerance_gap():
   assert interior_gap == pytest.approx(left_margin + TOL)
 
 
-@pytest.mark.parametrize("diameters", [
+@pytest.mark.parametrize("sizes", [
     [31.6, 31.6, 31.6, 31.6],
     [25.4, 40.0, 25.4],
     [49.6, 24.7, 39.2],
 ])
-def test_row_stays_in_bounds_with_min_spacing(diameters):
-  positions = calculate_line_positions(UA_DOUBLE, diameters, TOL, MIN_SPACING)
+def test_row_stays_in_bounds_with_min_spacing(sizes):
+  positions = calculate_line_positions(UA_DOUBLE, sizes, TOL, MIN_SPACING)
 
   edges = []
   for p in positions:
-    left = p['x'] - p['diameter'] / 2
-    right = p['x'] + p['diameter'] / 2
+    left = p['x'] - p['size'] / 2
+    right = p['x'] + p['size'] / 2
     assert left >= UA_DOUBLE['min']['x'] - 1e-9
     assert right <= UA_DOUBLE['max']['x'] + 1e-9
     edges.append((left, right))

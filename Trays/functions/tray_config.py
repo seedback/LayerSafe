@@ -5,7 +5,7 @@ from dataclasses import dataclass
 class TrayConfig:
   """All tray geometry and generation settings, defaulted in one place.
 
-  Per-base inputs (diameters, edge offsets, edge adjusts) are passed to
+  Per-base inputs (sizes, edge offsets, edge adjusts) are passed to
   generate_full_tray separately. All lengths are in millimeters.
   """
 
@@ -38,7 +38,12 @@ class TrayConfig:
   hinge_diameter: float = 27.7
 
   # Cutout and layout options
-  cutout_shape: str = 'square'  # 'circle' or 'square'
+  cutout_shape: str = 'circle'  # any key of shapes.SHAPES ('circle', 'square')
+  # Wall angle of the cutout in degrees from vertical. None uses the
+  # shape's default (see cutout_generator: 12.5 for circles, 5 for
+  # squares). For a measured base:
+  #   taper_angle = atan((top_size - bottom_size) / (2 * base_height))
+  taper_angle: float = None
   min_cutout_spacing: float = 2.0  # Minimum gap (mm) between cutout edges
   is_double_tray: bool = True
   force_linear_positions: bool = False
