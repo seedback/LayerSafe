@@ -93,6 +93,17 @@ def test_double_tray_row_assignment_and_edge_offsets():
     assert got['flipped'] is want['flipped']
 
 
+def test_short_edge_offsets_list_is_safe():
+  """Review B8 (fixed): an edge_offsets list shorter than the diameters list
+  used to IndexError on the back row (guard checked the wrong length).
+  Missing offsets are now treated as 0."""
+  positions = calculate_linear_cutout_positions(
+      UA_DOUBLE, [30.0, 30.0], [0.5], TOL, is_double_tray=True)
+
+  assert positions[0]['y'] == pytest.approx(-31.925 + 15.0 + 0.5)
+  assert positions[1]['y'] == pytest.approx(31.925 - 15.0)  # no offset
+
+
 def test_line_positions_symmetric_margins_and_tolerance_gap():
   positions = calculate_line_positions(UA_DOUBLE, [40.0, 40.0], TOL,
                                        MIN_SPACING)

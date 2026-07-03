@@ -1,9 +1,8 @@
-"""Characterization tests for the alternating (nested) cutout layout.
+"""Tests for the alternating (nested) cutout layout.
 
-These pin the CURRENT behavior of calculate_alternating_cutout_positions.
-Tests whose names start with test_bug_ intentionally assert known-buggy
-behavior (bug IDs reference the code-review findings); when a bug is fixed,
-invert the assertion rather than deleting the test.
+Pinned coordinates were captured from real runs. Several tests document
+fixes for review findings B1-B4 and B9 (see comments); they originally
+pinned the buggy behavior and were inverted when the bugs were fixed.
 """
 import pytest
 
@@ -65,7 +64,9 @@ def test_redistribution_equalizes_edge_gaps():
   gaps = []
   for a, b in zip(positions, positions[1:]):
     center_dist = ((b['x'] - a['x']) ** 2 + (b['y'] - a['y']) ** 2) ** 0.5
-    gaps.append(center_dist - a['diameter'] / 2 - b['diameter'] / 2)
+    # Physical clearance between the holes: subtract the toleranced radii.
+    gaps.append(center_dist
+                - (a['diameter'] + TOL) / 2 - (b['diameter'] + TOL) / 2)
 
   # All consecutive edge-to-edge gaps are equal and respect the validator's
   # 0.4mm minimum.
@@ -75,60 +76,77 @@ def test_redistribution_equalizes_edge_gaps():
 
 
 def test_single_diameter_is_centered():
-  # Note (review B4): this path relies on a leftover loop variable and
-  # SUBTRACTS the edge offset, while multi-diameter non-flipped positions
-  # add it (see test_bug_b3_...). Pinning current output.
+  # Review B4: this path used to rely on a leftover loop variable and
+  # subtracted the edge offset; it now adds it (inward), matching the
+  # multi-diameter and linear-layout convention.
   positions = calculate_alternating_cutout_positions(
       UA_DOUBLE, [40.0], [0.5], TOL)
 
   assert len(positions) == 1
   assert positions[0]['x'] == 0
-  assert positions[0]['y'] == pytest.approx(-12.425)  # min_y + 20 - 0.5
+  assert positions[0]['y'] == pytest.approx(-11.425)  # min_y + 20 + 0.5
   assert positions[0]['flipped'] is False
 
 
-def test_bug_b3_edge_offset_sign_is_inconsistent():
-  """BUG B3: the first position subtracts its edge offset, later non-flipped
-  positions add it — same tray side, opposite direction. When fixed, both
-  should move the cutout the same way (linear layout convention: inward)."""
+def test_single_diameter_without_edge_offsets():
+  # Review B4: an empty edge_offsets list used to raise IndexError here.
+  positions = calculate_alternating_cutout_positions(
+      UA_DOUBLE, [40.0], [], TOL)
+  assert positions[0]['y'] == pytest.approx(-11.925)  # min_y + 20
+
+
+def test_edge_offsets_move_cutouts_inward_consistently():
+  """Review B3 (fixed): every position moves inward, away from its resting
+  edge — +y on the front row, -y on the back row, matching the linear
+  layout convention."""
   positions = calculate_alternating_cutout_positions(
       UA_DOUBLE, [40.0, 40.0, 40.0], [1.0, 1.0, 1.0], TOL)
 
-  base_y = UA_DOUBLE['min']['y'] + 20.0  # resting on front edge
-  assert positions[0]['y'] == pytest.approx(base_y - 1.0)  # offset subtracted
-  assert positions[2]['y'] == pytest.approx(base_y + 1.0)  # offset added
+  front_y = UA_DOUBLE['min']['y'] + 20.0 + 1.0
+  back_y = UA_DOUBLE['max']['y'] - 20.0 - 1.0
+  assert positions[0]['y'] == pytest.approx(front_y)
+  assert positions[1]['y'] == pytest.approx(back_y)
+  assert positions[2]['y'] == pytest.approx(front_y)
 
 
-def test_bug_b1_y_boundary_violation_not_detected():
-  """BUG B1: the boundary check `break`s without flagging an error, so
-  cutouts overflowing the usable area in y are silently accepted (here the
-  gaps are wide, so the overlap check does not catch it either). When fixed,
-  this input should raise ValueError."""
+def test_y_boundary_violation_raises():
+  """Review B1 (fixed): cutouts overflowing the usable area in y used to be
+  silently accepted (the old boundary check `break`ed without flagging an
+  error). 35mm bases in a 30mm-deep area must be rejected."""
   area = {'min': {'x': -40.0, 'y': -15.0}, 'max': {'x': 40.0, 'y': 15.0}}
-  positions = calculate_alternating_cutout_positions(
-      area, [35.0, 35.0], [0, 0], TOL)
-
-  top_edge = positions[0]['y'] + 35.0 / 2
-  assert top_edge == pytest.approx(20.0)  # 5mm past max_y = 15.0, no error
+  with pytest.raises(ValueError, match="does not fit"):
+    calculate_alternating_cutout_positions(
+        area, [35.0, 35.0], [0, 0], TOL)
 
 
-def test_bug_b9_tolerance_has_no_effect():
-  """BUG B9: alternating layout computes `full_diameters` but never uses it,
-  so `tolerance` does not influence the result (linear layout does apply
-  it). When fixed, larger tolerance should spread the cutouts further."""
+def test_tolerance_affects_layout():
+  """Review B9 (fixed): tolerance used to be ignored entirely by the
+  alternating layout. It now sizes the physical holes, so a (much) larger
+  tolerance produces a different layout when space is tight."""
   a = calculate_alternating_cutout_positions(
       UA_DOUBLE, [24.7, 49.6, 39.2], [0] * 3, 0.55)
   b = calculate_alternating_cutout_positions(
       UA_DOUBLE, [24.7, 49.6, 39.2], [0] * 3, 5.0)
-  assert a == b
+  assert a != b
 
 
 def test_overcrowded_layout_raises():
-  # Too many large circles: consecutive gaps collapse below the 0.4mm
-  # minimum and the validator rejects the layout.
-  with pytest.raises(ValueError, match="too wide"):
+  # Too many large circles: they cannot all be placed inside the usable
+  # area with the required clearance.
+  with pytest.raises(ValueError, match="does not fit|too wide"):
     calculate_alternating_cutout_positions(
         UA_DOUBLE, [49.6] * 5, [0] * 5, TOL)
+
+
+def test_non_consecutive_overlap_raises():
+  """Review B2 (fixed): the overlap check only compared consecutive pairs,
+  so two same-side circles (i and i+2) could overlap undetected. Here the
+  tray is deep and narrow: consecutive gaps are fine (~0.6mm) but the two
+  30mm circles both land on the front row almost on top of each other."""
+  area = {'min': {'x': -22.0, 'y': -32.2}, 'max': {'x': 22.0, 'y': 32.2}}
+  with pytest.raises(ValueError, match="too wide"):
+    calculate_alternating_cutout_positions(
+        area, [30.0, 34.0, 30.0], [0, 0, 0], TOL)
 
 
 def test_circles_too_small_to_nest_raise_with_hint():

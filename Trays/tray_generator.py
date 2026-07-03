@@ -243,17 +243,21 @@ if __name__ == "__main__":
 
     try:
       show(tray_compound)
-    except:
+    except Exception:
       pass
 
-    # Ensure output directory exists
-    os.makedirs("output", exist_ok=True)
+    # Export next to this script, regardless of the current working directory
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    output_dir = os.path.join(script_dir, "output")
+    stl_path = os.path.join(output_dir, f"{output_filename}.stl")
+    step_path = os.path.join(output_dir, f"{output_filename}.step")
+    os.makedirs(os.path.dirname(stl_path), exist_ok=True)
 
-    export_stl(tray_compound, f"output/{output_filename}.stl")
-    print(f"Exported: output/{output_filename}.stl", flush=True)
+    export_stl(tray_compound, stl_path)
+    print(f"Exported: {stl_path}", flush=True)
 
-    export_step(tray_compound, f"output/{output_filename}.step")
-    print(f"Exported: output/{output_filename}.step", flush=True)
+    export_step(tray_compound, step_path)
+    print(f"Exported: {step_path}", flush=True)
 
     print(f"{output_filename} complete", flush=True)
 
@@ -268,34 +272,24 @@ if __name__ == "__main__":
 
     # Check for math domain error - usually caused by mixing large and small diameter bases
     if "math domain error" in error_message.lower():
-      print(f"{RED}Error: Cannot fit base configuration.\n" \
-          "Mixing large base diameters (32mm+) with small base diameters (<32mm) requires\n" \
-          "alternating them in the layout. Multiple small bases in a row causes geometric conflicts.\n" \
-          "Try: Distribute smaller diameters throughout with larger ones in between.\n" \
-          "Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]\n" \
-          "Try: Setting the flag \"--force-linear-positions\".{RESET}", flush=True)
-      raise ValueError("Error: Cannot fit base configuration.\n" \
-          "Mixing large base diameters (32mm+) with small base diameters (<32mm) requires\n" \
-          "alternating them in the layout. Multiple small bases in a row causes geometric conflicts.\n" \
-          "Try: Distribute smaller diameters throughout with larger ones in between.\n" \
-          "Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]\n" \
+      message = ("Cannot fit base configuration.\n"
+          "Mixing large base diameters (32mm+) with small base diameters (<32mm) requires\n"
+          "alternating them in the layout. Multiple small bases in a row causes geometric conflicts.\n"
+          "Try: Distribute smaller diameters throughout with larger ones in between.\n"
+          "Example: Instead of [25, 25, 40, 40], try [25, 40, 25, 40]\n"
           "Try: Setting the flag \"--force-linear-positions\".")
-    if "keyerror: 'flipped'" in error_message.lower():
-      print(
-          f"{RED}Error: System mirror the geometry of the base cutout for double sided trays.\n" \
-          "This usually occurs when only one diameter is provided.\n" \
-          "Try: Setting the flag \"--single-sided\".\n" \
-          "(Note: You may then need to set --depth manually. Try --depth 132 for standard size.){RESET}",
-          flush=True)
-      raise ValueError("Error: System mirror the geometry of the base cutout for double sided trays.\n" \
-          "This usually occurs when only one diameter is provided.\n" \
-          "Try: Setting the flag \"--single-sided\".\n" \
-          "(Note: You may then need to set --depth manually. Try --depth 132 for standard size.)\n")
-      
+    elif isinstance(e, KeyError) and "flipped" in error_message.lower():
+      message = ("System mirrors the geometry of the base cutout for double sided trays.\n"
+          "This usually occurs when only one diameter is provided.\n"
+          "Try: Setting the flag \"--single-sided\".\n"
+          "(Note: You may then need to set --depth manually. Try --depth 132 for standard size.)")
+    elif isinstance(e, ValueError):
+      # Layout errors already carry a user-friendly message
+      message = error_message
     else:
-      print(f"{RED}Error: {type(e).__name__}: {e}{RESET}", flush=True)
+      message = f"{type(e).__name__}: {error_message}"
 
-    sys.stdout.flush()
-    exit(1)
+    print(f"{RED}Error: {message}{RESET}", flush=True)
+    sys.exit(1)
 
 # %%
