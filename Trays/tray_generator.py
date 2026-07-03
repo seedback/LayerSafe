@@ -1,53 +1,23 @@
 # %% Libraries
 from build123d import *
 from ocp_vscode import *
-import math
-import copy
 import argparse
 import os
 from collections import Counter
 from functions.full_tray_generator import generate_full_tray
+from functions.tray_config import TrayConfig
 
 
 # %% User-Adjustable Parameters (Defaults)
 
+# All tray geometry and layout defaults live in functions/tray_config.py
+# (TrayConfig). Override individual fields here for IDE/Jupyter runs, e.g.:
+#   config = TrayConfig(total_width=200, cutout_shape='circle')
+config = TrayConfig()
+
 diameters = [24.7, 49.6, 39.2, 49.6, 24.7, ]
 edge_offsets = []
 edge_adjusts = []
-
-total_width = 189.5  # Default: 189.5
-total_depth = 66  # Default: 66.0
-safety_margin = (6.5, 0.8)
-
-floor_thickness = 0.8
-base_heigth = 4.2
-rail_height = 8.4
-rail_width = 4.8
-
-flap_center_gap = 0.2
-flap_depth = 11.8
-
-hinge_width = 2.8
-hinge_height = 3.6
-# Calculated from the edge of the center, not the flap
-hinge_depth = 17.5
-hinge_pin_radius = 1.4
-hinge_pin_length = 3
-bottom_chamfer = 0.4
-
-hinge_lock_radius = 3.5
-hinge_lock_offset = 0.4
-hinge_lock_depth = 8.3
-hinge_diameter = 27.7
-
-is_double_tray = True
-cutout_shape = 'square'  # 'circle' or 'square'
-min_cutout_spacing = 2.0  # Minimum gap (mm) between adjacent cutout edges
-force_linear_positions = False
-
-base_tolerance = .55
-epsilon = 0.001
-custom_filename = "output/test_tray"
 
 
 # %% Main execution
@@ -87,14 +57,14 @@ if __name__ == "__main__":
       parser.add_argument(
           "--width",
           type=float,
-          default=total_width,
-          help=f"Total tray width (default: {total_width})"
+          default=config.total_width,
+          help=f"Total tray width (default: {config.total_width})"
       )
       parser.add_argument(
           "--depth",
           type=float,
-          default=total_depth,
-          help=f"Total tray depth (default: {total_depth})"
+          default=config.total_depth,
+          help=f"Total tray depth (default: {config.total_depth})"
       )
       parser.add_argument(
           "--output",
@@ -106,19 +76,19 @@ if __name__ == "__main__":
           "--safety-margin-x",
           type=float,
           default=None,
-          help=f"Horizontal safety margin from edges (default: {safety_margin[0]})"
+          help=f"Horizontal safety margin from edges (default: {config.safety_margin[0]})"
       )
       parser.add_argument(
           "--safety-margin-y",
           type=float,
           default=None,
-          help=f"Vertical safety margin from edges (default: {safety_margin[1]}). If generating a tray of bases around 32mm, you may have to lower this to 0.4."
+          help=f"Vertical safety margin from edges (default: {config.safety_margin[1]}). If generating a tray of bases around 32mm, you may have to lower this to 0.4."
       )
       parser.add_argument(
           "--tolerance",
           type=float,
           default=None,
-          help=f"Tolerance for base fit (default: {base_tolerance})"
+          help=f"Tolerance for base fit (default: {config.tolerance})"
       )
       parser.add_argument(
           "--edge-offsets",
@@ -144,13 +114,13 @@ if __name__ == "__main__":
           type=str,
           default=None,
           choices=["circle", "square"],
-          help=f"Cutout shape (default: {cutout_shape})"
+          help=f"Cutout shape (default: {config.cutout_shape})"
       )
       parser.add_argument(
           "--min-cutout-spacing",
           type=float,
           default=None,
-          help=f"Minimum gap (mm) between adjacent cutout edges (default: {min_cutout_spacing})"
+          help=f"Minimum gap (mm) between adjacent cutout edges (default: {config.min_cutout_spacing})"
       )
       parser.add_argument(
           "--force-linear-positions",
@@ -160,26 +130,26 @@ if __name__ == "__main__":
 
       args = parser.parse_args()
 
-      # Override defaults with command line arguments
+      # Override config defaults with command line arguments
       diameters = args.diameters
-      total_width = args.width
-      total_depth = args.depth
+      config.total_width = args.width
+      config.total_depth = args.depth
       custom_output = args.output
-      is_double_tray = not args.single_sided
+      config.is_double_tray = not args.single_sided
       if args.cutout_shape is not None:
-        cutout_shape = args.cutout_shape
+        config.cutout_shape = args.cutout_shape
       if args.min_cutout_spacing is not None:
-        min_cutout_spacing = args.min_cutout_spacing
-      force_linear_positions = args.force_linear_positions
+        config.min_cutout_spacing = args.min_cutout_spacing
+      config.force_linear_positions = args.force_linear_positions
 
       # Handle safety margins - use provided values or keep defaults
-      margin_x = args.safety_margin_x if args.safety_margin_x is not None else safety_margin[0]
-      margin_y = args.safety_margin_y if args.safety_margin_y is not None else safety_margin[1]
-      safety_margin = (margin_x, margin_y)
+      margin_x = args.safety_margin_x if args.safety_margin_x is not None else config.safety_margin[0]
+      margin_y = args.safety_margin_y if args.safety_margin_y is not None else config.safety_margin[1]
+      config.safety_margin = (margin_x, margin_y)
 
       # Handle tolerance - use provided value or keep default
       if args.tolerance is not None:
-        base_tolerance = args.tolerance
+        config.tolerance = args.tolerance
 
       # Handle edge offsets - use provided values or keep default
       if args.edge_offsets is not None:
@@ -210,33 +180,9 @@ if __name__ == "__main__":
 
     tray_compound, _ = generate_full_tray(
         diameters,
-        safety_margin,
-        total_width,
-        total_depth,
-        floor_thickness,
-        base_heigth,
-        rail_height,
-        rail_width,
-        flap_center_gap,
-        flap_depth,
-        hinge_width,
-        hinge_height,
-        hinge_depth,
-        hinge_pin_radius,
-        hinge_pin_length,
-        bottom_chamfer,
-        hinge_lock_radius,
-        hinge_lock_offset,
-        hinge_lock_depth,
-        edge_offsets,
-        edge_adjusts,
-        is_double_tray,
-        force_linear_positions,
-        epsilon,
-        base_tolerance,
-        hinge_diameter,
-        cutout_shape=cutout_shape,
-        min_cutout_spacing=min_cutout_spacing,
+        config,
+        edge_offsets=edge_offsets,
+        edge_adjusts=edge_adjusts,
     )
     print("Tray generated successfully", flush=True)
     sys.stdout.flush()
