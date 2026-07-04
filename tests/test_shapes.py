@@ -54,7 +54,6 @@ def test_oval_footprint_and_layout_sizes():
   assert oval.layout_sizes((60.0, 35.0), 0.55) == (60.0, 35.0)
   # Circumradius covers the long axis.
   assert oval.circumradius((60.0, 35.0), 0.55) == pytest.approx(30.275)
-  assert oval.supports_alternating is False
 
 
 def test_get_shape_unknown_name_lists_available():
@@ -92,12 +91,13 @@ def test_min_center_distance_squares_is_conservative():
           > circle.min_center_distance(40.0, circle, 40.0, 0.55))
 
 
-def test_alternating_layout_support_flags():
-  assert get_shape('circle').supports_alternating is True
-  # Squares and hexes must stay on the linear layout: circle-tangency
-  # nesting underestimates their corner footprint.
-  assert get_shape('square').supports_alternating is False
-  assert get_shape('hex').supports_alternating is False
+def test_nesting_styles():
+  # Circles use exact tangency; every other shape uses conservative
+  # bounding-box spacing in the alternating layout.
+  assert get_shape('circle').nesting == 'circle'
+  assert get_shape('square').nesting == 'box'
+  assert get_shape('hex').nesting == 'box'
+  assert get_shape('oval').nesting == 'box'
 
 
 def test_hex_footprint_is_wider_across_corners():

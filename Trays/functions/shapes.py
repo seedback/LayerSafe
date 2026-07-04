@@ -4,8 +4,9 @@ To add a new shape:
   1. Subclass CutoutShape and implement build() (the 3D negative) and
      circumradius(); override footprint() if the bounding box is not
      size x size.
-  2. Set supports_alternating only if the shape's clearance math is safe
-     under the alternating layout's nesting.
+  2. Set `nesting` to 'box' (conservative bounding-box spacing, the
+     default) or 'circle' (exact tangency, only for circular footprints);
+     it controls how the alternating layout spaces this shape.
   3. Add an instance to SHAPES below. The CLI --cutout-shape choices and
      the orchestrator pick it up from there.
 
@@ -60,8 +61,10 @@ class CutoutShape:
 
   #: Registry key, also the CLI value for --cutout-shape.
   name = None
-  #: Whether the alternating (nested) layout may be used for this shape.
-  supports_alternating = False
+  #: How the alternating (nested) layout spaces this shape: 'circle'
+  #: uses exact circle tangency; 'box' uses conservative bounding-box
+  #: separation (safe for any shape).
+  nesting = 'box'
   #: 'scalar' (one number per base) or 'pair' (WIDTHxDEPTH per base).
   size_format = 'scalar'
 
@@ -116,7 +119,7 @@ class CutoutShape:
 
 class CircleShape(CutoutShape):
   name = 'circle'
-  supports_alternating = True
+  nesting = 'circle'
 
   def circumradius(self, size, tolerance):
     return (size + tolerance) / 2
@@ -131,10 +134,6 @@ class CircleShape(CutoutShape):
 
 class SquareShape(CutoutShape):
   name = 'square'
-  # The alternating layout nests bases using circle-tangency math, which
-  # underestimates a square's diagonal footprint and can overlap adjacent
-  # squares at their corners — keep squares on the linear layout.
-  supports_alternating = False
 
   def circumradius(self, size, tolerance):
     return (size + tolerance) * math.sqrt(2) / 2
@@ -154,9 +153,6 @@ class HexShape(CutoutShape):
   the measured size.
   """
   name = 'hex'
-  # Same reason as squares: circle-tangency nesting cannot guarantee
-  # corner clearance, so hexes stay on the linear layout.
-  supports_alternating = False
 
   def footprint(self, size, tolerance):
     across_corners = (size + tolerance) * 2 / math.sqrt(3)
@@ -183,7 +179,6 @@ class OvalShape(CutoutShape):
   stand the oval upright if it is too deep for a row.
   """
   name = 'oval'
-  supports_alternating = False
   size_format = 'pair'
 
   def footprint(self, size, tolerance):

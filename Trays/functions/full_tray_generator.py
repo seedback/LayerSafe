@@ -56,6 +56,7 @@ def calculate_cutout_positions(
     force_linear_positions=False,
     min_cutout_spacing=2.0,
     layout_sizes=None,
+    nesting='circle',
 ):
   if len(sizes) == 0:
     return []
@@ -68,7 +69,8 @@ def calculate_cutout_positions(
         min_spacing=min_cutout_spacing, layout_sizes=layout_sizes)
   else:
     positions = calculate_alternating_cutout_positions(
-        usable_area, sizes, edge_offsets, tolerance)
+        usable_area, sizes, edge_offsets, tolerance,
+        layout_sizes=layout_sizes, nesting=nesting)
 
   return positions
 
@@ -124,17 +126,14 @@ def generate_full_tray(
       config.is_double_tray,
   )
 
-  # Shapes that cannot guarantee clearance under the alternating layout's
-  # nesting math (see functions/shapes.py) are kept on the linear layout.
-  use_linear_positions = (config.force_linear_positions
-                          or not shape.supports_alternating)
   positions = calculate_cutout_positions(
       usable_area, sizes, edge_offsets, config.tolerance,
       config.is_double_tray,
-      force_linear_positions=use_linear_positions,
+      force_linear_positions=config.force_linear_positions,
       min_cutout_spacing=config.min_cutout_spacing,
       layout_sizes=[shape.layout_sizes(size, config.tolerance)
-                    for size in sizes])
+                    for size in sizes],
+      nesting=shape.nesting)
 
   cutouts_list = []
 

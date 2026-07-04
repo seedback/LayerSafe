@@ -63,7 +63,7 @@ Each size is one base. What "size" means depends on the cutout shape:
 
 Hex cutouts are oriented with their flats facing the tray edges (corners pointing sideways), so measure your hex bases across the flats—the natural caliper measurement.
 
-Oval sizes are given in tray orientation: width runs along the tray, depth front-to-back. If an oval is too deep for a row, swap the numbers (e.g. `35x60`) to stand it upright.
+Oval sizes are given in tray orientation: width runs along the tray, depth front-to-back. If an oval is too deep for a row, swap the numbers (e.g. `35x60`) to stand it upright. Ovals too deep to sit in two straight rows are automatically nested against alternating edges when they fit (e.g. two 75x42 ovals on the standard tray).
 
 > **⚠️ Important:** Base sizes should be measured as accurately as possible. Precision down to **0.1mm** is recommended for proper fit. Use quality calipers with good accuracy (±0.1mm or better) to measure your bases before generating the tray.
 
@@ -105,7 +105,7 @@ python Trays/tray_generator.py 60x30 60x30 45x25 --cutout-shape oval
 | `--edge-offsets` | space-separated floats | None | Edge offsets for each base (e.g., `0.5 0.5 0.5`) will reduce the depth of the base with the given amount without affecting the width. Useful for fine-tuning fit, especially on larger bases (mm) |
 | `--edge-adjusts` | space-separated floats | None | Edge adjustments for each base (e.g., `0.2 0.2 0.2`), independent of edge-offsets for additional fine-tuning, a larger value will give a larger flat-spot below the curved section (mm) |
 | `--single-sided` | flag | False | Generate a single-sided tray (default: double-sided) |
-| `--force-linear-positions` | flag | False | Forces linear positioning (default: automatically selects linear or alternating positioning; square and hex cutouts always use linear) |
+| `--force-linear-positions` | flag | False | Forces straight-row positioning (default: bases too deep to stack are automatically nested against alternating edges — exact tangency for circles, conservative bounding-box spacing for square/hex/oval) |
 | `--output` | string | auto | Output filename (without extension) |
 
 #### Matching sloped bases

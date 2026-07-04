@@ -161,3 +161,67 @@ def test_side_from_hyp_math():
   assert _side_from_hyp(5, 3) == pytest.approx(4.0)
   with pytest.raises(ValueError):
     _side_from_hyp(3, 5)
+
+
+def test_two_75x42_ovals_nest_diagonally():
+  """The user scenario that motivated box nesting: two 75x42mm ovals on
+  the standard 189.5x66 tray. Too deep to stack (42+42 > 63.85 usable),
+  but they fit with one on each edge, offset in x."""
+  ovals = [(75.0, 42.0), (75.0, 42.0)]
+  positions = calculate_alternating_cutout_positions(
+      UA_DOUBLE, ovals, [0, 0], TOL,
+      layout_sizes=[(75.0, 42.0), (75.0, 42.0)], nesting='box')
+
+  assert len(positions) == 2
+  front, back = positions
+  assert front['flipped'] is False and back['flipped'] is True
+  assert front['size'] == (75.0, 42.0)
+
+  # Resting on their edges: y = edge -+ depth/2.
+  assert front['y'] == pytest.approx(-31.925 + 21.0)
+  assert back['y'] == pytest.approx(31.925 - 21.0)
+
+  # Pushed into opposite corners, physically clear of each other in x
+  # (holes are 75.55 wide; centers must be > 75.55 + 0.4 apart).
+  assert front['x'] == pytest.approx(-83.45 + 37.5)
+  assert back['x'] == pytest.approx(83.45 - 37.5)
+  assert (back['x'] - front['x']) - 75.55 >= 0.4
+
+  # And each stays inside the usable area.
+  assert front['x'] - 37.5 >= UA_DOUBLE['min']['x'] - 0.1
+  assert back['x'] + 37.5 <= UA_DOUBLE['max']['x'] + 0.1
+
+
+def test_box_nesting_two_large_squares():
+  """40mm squares were previously barred from the nesting layout; with
+  box spacing they nest into opposite corners like circles do -- but
+  spaced by their full widths, since circle tangency would let their
+  corners collide."""
+  positions = calculate_alternating_cutout_positions(
+      UA_DOUBLE, [40.0, 40.0], [0, 0], TOL,
+      layout_sizes=[(40.0, 40.0), (40.0, 40.0)], nesting='box')
+
+  assert [p['flipped'] for p in positions] == [False, True]
+  dx = positions[1]['x'] - positions[0]['x']
+  # Box spacing: full half-widths + tolerance + gap, NOT the smaller
+  # circle-tangency distance for this dy.
+  assert dx - 40.55 >= 0.4
+
+
+def test_box_nesting_rejects_overcrowding():
+  # Three 75-wide ovals cannot fit across 166.9mm of usable width.
+  with pytest.raises(ValueError, match="does not fit|too wide"):
+    calculate_alternating_cutout_positions(
+        UA_DOUBLE, [(75.0, 42.0)] * 3, [0] * 3, TOL,
+        layout_sizes=[(75.0, 42.0)] * 3, nesting='box')
+
+
+def test_box_nesting_allows_vertical_clearance():
+  # Two shallow bases that fit stacked need no x separation: box nesting
+  # may place them at the same x when the tray is deep enough.
+  positions = calculate_alternating_cutout_positions(
+      UA_DOUBLE, [(60.0, 25.0), (60.0, 25.0)], [0, 0], TOL,
+      layout_sizes=[(60.0, 25.0), (60.0, 25.0)], nesting='box')
+  # 25 + 25 + tolerance clears 63.85 usable depth: vertical gap is fine
+  # regardless of x, so no overlap error and both fit in bounds.
+  assert len(positions) == 2
