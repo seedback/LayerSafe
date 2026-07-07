@@ -15,6 +15,7 @@ so shape classes import their geometry builders lazily inside build().
 All lengths are in millimeters.
 """
 import math
+from collections import Counter
 
 
 def parse_size(token):
@@ -48,6 +49,48 @@ def format_size(size):
   if isinstance(size, (tuple, list)):
     return f"{size[0]}x{size[1]}"
   return str(size)
+
+
+def parse_base(token):
+  """Parse one '[shape:]size' base token from the CLI.
+
+  '24.7' -> (None, 24.7): no prefix, the tray's default shape decides.
+  'oval:60x35' -> ('oval', (60.0, 35.0)): prefixed bases are validated
+  against the named shape's size format right here, so a bad token is
+  reported by name.
+  """
+  text = str(token).strip()
+  if ':' not in text:
+    return None, parse_size(text)
+  shape_name, size_text = text.split(':', 1)
+  shape = get_shape(shape_name.strip().lower())
+  size = parse_size(size_text)
+  shape.validate_size(size)
+  return shape.name, size
+
+
+def format_base_summary(shape_names, sizes, default_shape):
+  """Filename fragment summarizing the bases, e.g. '1xoval60x35mm_4x24.7mm'.
+
+  Bases are counted by (shape, size); `shape_names` entries of None (and
+  bases beyond the end of the list) use `default_shape`, and only shapes
+  differing from it are spelled out, so single-shape trays keep their
+  plain '10x31.6mm' style names.
+  """
+  padded = list(shape_names) + [None] * (len(sizes) - len(shape_names))
+  counts = Counter((name if name is not None else default_shape, size)
+                   for name, size in zip(padded, sizes))
+  # Sort by shape, then size; size keys are padded to tuples so scalar
+  # and (width, depth) pair sizes order together.
+  summary = sorted(
+      counts.items(),
+      key=lambda item: (item[0][0],) + (
+          item[0][1] if isinstance(item[0][1], tuple) else (item[0][1],)))
+  parts = []
+  for (shape_name, size), count in summary:
+    prefix = '' if shape_name == default_shape else shape_name
+    parts.append(f"{count}x{prefix}{format_size(size)}mm")
+  return '_'.join(parts)
 
 
 class CutoutShape:

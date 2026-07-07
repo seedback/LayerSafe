@@ -18,10 +18,12 @@ def calculate_alternating_cutout_positions(
 
   `layout_sizes` is an optional per-base (x_size, y_size) list (see the
   linear layout); defaults to (size, size). `nesting` selects the spacing
-  math: 'circle' is exact tangency for circular footprints; 'box' is
-  conservative bounding-box separation, safe for any shape (squares,
-  hexes, ovals) -- a pair resting on opposite edges is spaced apart in x
-  unless the tray is deep enough for them to clear vertically.
+  math, either one string for every base or a per-base list: 'circle' is
+  exact tangency for circular footprints; 'box' is conservative
+  bounding-box separation, safe for any shape (squares, hexes, ovals) --
+  a pair resting on opposite edges is spaced apart in x unless the tray
+  is deep enough for them to clear vertically. A mixed pair uses circle
+  tangency only when both bases are 'circle'.
   """
   if len(sizes) == 0:
     return []
@@ -29,12 +31,16 @@ def calculate_alternating_cutout_positions(
   if layout_sizes is None:
     layout_sizes = [(size, size) for size in sizes]
 
+  if isinstance(nesting, str):
+    nesting = [nesting] * len(sizes)
+
   if len(sizes) == 1:
     positions = [{
         'x': 0,
         'y': usable_area['min']['y'] + layout_sizes[0][1] / 2
         + _offset(edge_offsets, 0),
         'size': sizes[0],
+        'index': 0,
         'flipped': False,
     }]
   else:
@@ -67,6 +73,12 @@ def _box_min_dx(fx_a, fy_a, fx_b, fy_b, dy, tolerance, gap):
   return (fx_a + tolerance) / 2 + (fx_b + tolerance) / 2 + gap
 
 
+def _pair_nests_as_circles(nesting, i, j):
+  """Exact circle tangency only applies between two circular footprints;
+  any pair involving a box-nested shape falls back to bounding boxes."""
+  return nesting[i] == 'circle' and nesting[j] == 'circle'
+
+
 def _calculate_initial_positions(
     usable_area,
     sizes,
@@ -86,6 +98,7 @@ def _calculate_initial_positions(
           'x': usable_area['min']['x'] + fx/2,
           'y': usable_area['min']['y'] + fy/2 + _offset(edge_offsets, i),
           'size': size,
+          'index': i,
           'flipped': False,
       })
     else:
@@ -93,7 +106,7 @@ def _calculate_initial_positions(
       last_fx, last_fy = layout_sizes[i - 1]
       # Distance in y between the two resting centers.
       dy = usable_area_total['y'] - last_fy / 2 - fy / 2
-      if nesting == 'circle':
+      if _pair_nests_as_circles(nesting, i - 1, i):
         # Nest against the previous cutout using the full (toleranced)
         # hole sizes so the physical holes keep their clearance.
         hyp = (last_fx + tolerance) / 2 + (fx + tolerance) / 2
@@ -111,6 +124,7 @@ def _calculate_initial_positions(
           'x': last_pos['x'] + offset,
           'y': y,
           'size': size,
+          'index': i,
           'flipped': is_flipped,
       })
 
@@ -151,7 +165,7 @@ def _validate_positions(usable_area, positions, tolerance, layout_sizes,
     for j in range(i + 1, len(positions)):
       dx = positions[j]['x'] - positions[i]['x']
       dy = positions[j]['y'] - positions[i]['y']
-      if nesting == 'circle':
+      if _pair_nests_as_circles(nesting, i, j):
         center_distance = math.sqrt(dx*dx + dy*dy)
         edge_distance = (
             center_distance -
@@ -206,7 +220,7 @@ def _redistribution_pass(
   def calculate_dx(i, dy, gap):
     fx_a, fy_a = layout_sizes[i]
     fx_b, fy_b = layout_sizes[i + 1]
-    if nesting == 'circle':
+    if _pair_nests_as_circles(nesting, i, i + 1):
       radius_a = (fx_a + tolerance) / 2
       radius_b = (fx_b + tolerance) / 2
       h = gap + radius_a + radius_b  # Hypotenuse needed for this gap

@@ -82,11 +82,15 @@ def generate_full_tray(
     config=None,
     edge_offsets=None,
     edge_adjusts=None,
+    shapes=None,
 ):
   """Generate a tray with cutouts for the given base sizes.
 
   Each entry in `sizes` is one base: the diameter for circular cutouts,
-  the side length for square ones (see functions/shapes.py). Geometry and
+  the side length for square ones (see functions/shapes.py). `shapes`
+  optionally gives each base its own shape name; entries of None (and
+  bases beyond the end of the list) use config.cutout_shape, so shapes
+  can be mixed in one tray (e.g. one oval among circles). Geometry and
   layout settings come from `config` (a TrayConfig); per-base fine-tuning
   comes from edge_offsets / edge_adjusts, which are padded with zeros to
   match the length of `sizes`.
@@ -94,9 +98,16 @@ def generate_full_tray(
   if config is None:
     config = TrayConfig()
 
-  shape = get_shape(config.cutout_shape)
-  for size in sizes:
-    shape.validate_size(size)
+  shape_names = list(shapes) if shapes else []
+  while len(shape_names) < len(sizes):
+    shape_names.append(None)
+  base_shapes = [get_shape(name if name is not None else config.cutout_shape)
+                 for name in shape_names]
+  for i, (shape, size) in enumerate(zip(base_shapes, sizes)):
+    try:
+      shape.validate_size(size)
+    except ValueError as e:
+      raise ValueError(f"Base {i + 1}: {e}") from None
 
   storage_key = ((config.total_width, config.total_depth),
                  config.is_double_tray)
@@ -132,21 +143,24 @@ def generate_full_tray(
       force_linear_positions=config.force_linear_positions,
       min_cutout_spacing=config.min_cutout_spacing,
       layout_sizes=[shape.layout_sizes(size, config.tolerance)
-                    for size in sizes],
-      nesting=shape.nesting)
+                    for shape, size in zip(base_shapes, sizes)],
+      nesting=[shape.nesting for shape in base_shapes])
 
   cutouts_list = []
 
-  for i, position in enumerate(positions):
-    cutout = shape.build(
+  for position in positions:
+    # Layouts may reorder the bases (the linear layout splits them into
+    # two rows), so per-base inputs are looked up by the original index.
+    idx = position['index']
+    cutout = base_shapes[idx].build(
         position['size'],
         tolerance=config.tolerance,
         flap_depth=config.flap_depth,
         hinge_diameter=config.hinge_diameter,
         flap_center_gap=config.flap_center_gap,
         edge_margin=config.safety_margin[1],
-        edge_adjust=edge_adjusts[i],
-        edge_offset=edge_offsets[i],
+        edge_adjust=edge_adjusts[idx],
+        edge_offset=edge_offsets[idx],
         taper_angle=config.taper_angle,
         flap_clearance=config.flap_clearance,
         epsilon=config.epsilon,

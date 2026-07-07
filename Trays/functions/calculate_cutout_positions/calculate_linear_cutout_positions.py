@@ -26,7 +26,9 @@ def calculate_linear_cutout_positions(
   whose bounding box is not size x size (e.g. a hex is wider across its
   corners than its measured across-flats size). Defaults to (size, size).
   The physical hole measures layout_size + tolerance across each axis;
-  positions keep the original scalar under the 'size' key.
+  positions keep the original scalar under the 'size' key and, because
+  the two rows reorder the bases, their position in `sizes` under the
+  'index' key.
   """
   if layout_sizes is None:
     layout_sizes = [(size, size) for size in sizes]
@@ -86,6 +88,7 @@ def calculate_linear_cutout_positions(
 
   for i, pos in enumerate(x_positions):
     idx = line_one_indices[i]
+    pos['index'] = idx
     pos['y'] = usable_area['min']['y'] + layout_sizes[idx][1] / 2
     if idx < len(edge_offsets):
       pos['y'] += edge_offsets[idx]
@@ -102,6 +105,7 @@ def calculate_linear_cutout_positions(
 
     for i, pos in enumerate(y_positions):
       idx = line_two_indices[i]
+      pos['index'] = idx
       pos['y'] = usable_area['max']['y'] - layout_sizes[idx][1] / 2
       if idx < len(edge_offsets):
         pos['y'] -= edge_offsets[idx]

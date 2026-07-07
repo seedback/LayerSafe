@@ -3,9 +3,8 @@ from build123d import *
 from ocp_vscode import *
 import argparse
 import os
-from collections import Counter
 from functions.full_tray_generator import generate_full_tray
-from functions.shapes import SHAPES, parse_size, format_size
+from functions.shapes import SHAPES, parse_base, format_base_summary
 from functions.tray_config import TrayConfig
 
 
@@ -17,6 +16,9 @@ from functions.tray_config import TrayConfig
 config = TrayConfig()
 
 sizes = [24.7, 49.6, 39.2, 49.6, 24.7, ]
+# Optional per-base shape names, parallel to sizes; None (or a missing
+# entry) uses config.cutout_shape. Example: ['oval', None, None].
+shapes = []
 edge_offsets = []
 edge_adjusts = []
 
@@ -49,19 +51,21 @@ if __name__ == "__main__":
           + "Example: \"python tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4 --tolerance 0.6\"\n",
           formatter_class=argparse.RawDescriptionHelpFormatter
       )
-      def size_argument(token):
+      def base_argument(token):
         try:
-          return parse_size(token)
+          return parse_base(token)
         except ValueError as e:
-          raise argparse.ArgumentTypeError(str(e))
+          raise argparse.ArgumentTypeError(f"'{token}': {e}")
 
       parser.add_argument(
           "sizes",
-          type=size_argument,
+          type=base_argument,
           nargs="+",
           help="Space-separated list of base sizes in mm: circle diameter, "
           "square side length, or hex across-flats (e.g., 31.6 31.6 25.4). "
-          "Oval bases take WIDTHxDEPTH pairs (e.g., 60x35)."
+          "Oval bases take WIDTHxDEPTH pairs (e.g., 60x35). Prefix a size "
+          "with a shape name to mix shapes in one tray (e.g., oval:60x35 "
+          "24.7 24.7); unprefixed sizes use --cutout-shape."
       )
       parser.add_argument(
           "--width",
@@ -160,7 +164,8 @@ if __name__ == "__main__":
       args = parser.parse_args()
 
       # Override config defaults with command line arguments
-      sizes = args.sizes
+      shapes = [name for name, _ in args.sizes]
+      sizes = [size for _, size in args.sizes]
       config.total_width = args.width
       config.total_depth = args.depth
       custom_output = args.output
@@ -195,22 +200,13 @@ if __name__ == "__main__":
       # No arguments - use defaults
       custom_output = None
 
-    # Create a summary of sizes (count how many of each size)
-    size_count = Counter(sizes)
-    # Sort key tuples so scalar and (width, depth) pair sizes both order
-    size_summary = sorted(
-        size_count.items(),
-        key=lambda item: item[0] if isinstance(item[0], tuple)
-        else (item[0],))
-
-    # Generate filename from size summary if not provided
+    # Generate filename from a summary of the bases if not provided,
+    # like "tray_1xoval60x35mm_4x24.7mm".
     if custom_output:
       output_filename = custom_output
     else:
-      # Create filename like "tray_31.6x10_25.4x5" from the size summary
-      filename_parts = [
-          f"{count}x{format_size(size)}mm" for size, count in size_summary]
-      output_filename = f"tray_{'_'.join(filename_parts)}"
+      output_filename = (
+          f"tray_{format_base_summary(shapes, sizes, config.cutout_shape)}")
 
     print("Generating", output_filename, flush=True)
     sys.stdout.flush()
@@ -220,6 +216,7 @@ if __name__ == "__main__":
         config,
         edge_offsets=edge_offsets,
         edge_adjusts=edge_adjusts,
+        shapes=shapes,
     )
     print("Tray generated successfully", flush=True)
     sys.stdout.flush()

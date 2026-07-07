@@ -7,8 +7,9 @@ import math
 
 import pytest
 
-from shapes import (SHAPES, get_shape, parse_size, format_size,
-                    CircleShape, SquareShape, HexShape, OvalShape)
+from shapes import (SHAPES, get_shape, parse_size, format_size, parse_base,
+                    format_base_summary, CircleShape, SquareShape, HexShape,
+                    OvalShape)
 
 
 def test_registry_contains_all_shapes():
@@ -37,6 +38,49 @@ def test_parse_size():
 def test_format_size_roundtrip():
   assert format_size(31.6) == '31.6'
   assert format_size((60.0, 35.0)) == '60.0x35.0'
+
+
+def test_parse_base_unprefixed_defers_shape():
+  # No prefix: the shape is decided later by the tray default, so no
+  # size-format validation happens here.
+  assert parse_base('24.7') == (None, 24.7)
+  assert parse_base('60x35') == (None, (60.0, 35.0))
+
+
+def test_parse_base_prefixed():
+  assert parse_base('oval:60x35') == ('oval', (60.0, 35.0))
+  assert parse_base('square:31.6') == ('square', 31.6)
+  assert parse_base('circle:24.7') == ('circle', 24.7)
+  assert parse_base('OVAL:60X35') == ('oval', (60.0, 35.0))
+
+
+def test_parse_base_rejects_bad_tokens():
+  with pytest.raises(ValueError, match="Unknown cutout shape"):
+    parse_base('bogus:31.6')
+  with pytest.raises(ValueError, match="WIDTHxDEPTH"):
+    parse_base('oval:31.6')
+  with pytest.raises(ValueError, match="single size number"):
+    parse_base('circle:60x35')
+  with pytest.raises(ValueError, match="WIDTHxDEPTH"):
+    parse_base('oval:60x35x2')
+
+
+def test_format_base_summary_single_shape_keeps_plain_names():
+  # All-default trays keep their historical filename style.
+  assert format_base_summary(
+      [], [24.7, 24.7, 31.6], 'circle') == '2x24.7mm_1x31.6mm'
+  assert format_base_summary(
+      [None, None], [31.6, 31.6], 'square') == '2x31.6mm'
+
+
+def test_format_base_summary_mixed_shapes_are_prefixed():
+  assert format_base_summary(
+      ['oval', None, None, None, None],
+      [(60.0, 35.0), 24.7, 24.7, 24.7, 24.7],
+      'circle') == '4x24.7mm_1xoval60.0x35.0mm'
+  # An explicit prefix matching the default is not spelled out.
+  assert format_base_summary(
+      ['circle', 'hex'], [24.7, 25.4], 'circle') == '1x24.7mm_1xhex25.4mm'
 
 
 def test_validate_size():

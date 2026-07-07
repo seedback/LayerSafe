@@ -65,6 +65,8 @@ Hex cutouts are oriented with their flats facing the tray edges (corners pointin
 
 Oval sizes are given in tray orientation: width runs along the tray, depth front-to-back. If an oval is too deep for a row, swap the numbers (e.g. `35x60`) to stand it upright. Ovals too deep to sit in two straight rows are automatically nested against alternating edges when they fit (e.g. two 75x42 ovals on the standard tray).
 
+Shapes can be mixed in one tray by prefixing individual sizes with a shape name, e.g. `oval:60x35` or `hex:25.4`. Sizes without a prefix use `--cutout-shape` (circle by default).
+
 > **⚠️ Important:** Base sizes should be measured as accurately as possible. Precision down to **0.1mm** is recommended for proper fit. Use quality calipers with good accuracy (±0.1mm or better) to measure your bases before generating the tray.
 
 #### Simple Examples
@@ -89,13 +91,18 @@ Generate a tray for oval bases (60mm wide, 30mm deep):
 python Trays/tray_generator.py 60x30 60x30 45x25 --cutout-shape oval
 ```
 
+Mix shapes in one tray — one oval among circles (deep ovals among small circles usually need `--force-linear-positions`):
+```bash
+python Trays/tray_generator.py oval:60x35 24.7 24.7 24.7 24.7 --force-linear-positions
+```
+
 #### Available Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
 | `--width` | float | 189.5 | Total tray width in mm |
 | `--depth` | float | 66.0 | Total tray depth in mm |
-| `--cutout-shape` | choice | circle | Cutout shape: `circle`, `square`, `hex`, or `oval` |
+| `--cutout-shape` | choice | circle | Default cutout shape for unprefixed sizes: `circle`, `square`, `hex`, or `oval` |
 | `--taper-angle` | float | shape default | Wall angle of the cutouts in degrees from vertical (default: 12.5 for circle, 5 for square/hex/oval). See [Matching sloped bases](#matching-sloped-bases) |
 | `--flap-clearance` | float | 1.0 | Extra sideways clearance (mm per side) in the flap's part of square/hex/oval cutouts so the flap rotates closed past seated bases. Circle cutouts have their own rotation relief and ignore this |
 | `--tolerance` | float | 0.55 | Fit tolerance added around each base (mm) |
