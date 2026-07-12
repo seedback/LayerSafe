@@ -1,78 +1,23 @@
 # %% Libraries
 import copy
-import math
 from build123d import *
 from ocp_vscode import *
 
+# calculate_usable_area and calculate_cutout_positions moved to
+# layout_engine (the CAD-free layout pipeline) and are re-imported here
+# so existing callers keep working.
 if __name__ == "__main__":
   from tray_config import TrayConfig
-  from shapes import get_shape
   from base_tray_generator import generate_base_tray
-  from calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
-  from calculate_cutout_positions.calculate_alternating_cutout_positions import calculate_alternating_cutout_positions
+  from layout_engine import (
+      calculate_usable_area, calculate_cutout_positions, compute_layout)
 else:
   from .tray_config import TrayConfig
-  from .shapes import get_shape
   from .base_tray_generator import generate_base_tray
-  from .calculate_cutout_positions.calculate_linear_cutout_positions import calculate_linear_cutout_positions
-  from .calculate_cutout_positions.calculate_alternating_cutout_positions import calculate_alternating_cutout_positions
+  from .layout_engine import (
+      calculate_usable_area, calculate_cutout_positions, compute_layout)
 
 base_tray_storage = {}
-
-
-def calculate_usable_area(
-    total_width,
-    total_depth,
-    rail_width,
-    safety_margin,
-    tolerance,
-    is_double_tray,
-):
-  usable_area = {}
-  usable_area_min = {}
-  usable_area_min['x'] = -total_width/2 + \
-      rail_width + safety_margin[0]
-  usable_area_min['y'] = -total_depth/2 + safety_margin[1] + tolerance/2
-  usable_area['min'] = usable_area_min
-
-  usable_area_max = {}
-  usable_area_max['x'] = total_width/2 - \
-      rail_width - safety_margin[0]
-  if is_double_tray:
-    usable_area_max['y'] = total_depth/2 - safety_margin[1] - tolerance/2
-  else:
-    usable_area_max['y'] = 0
-  usable_area['max'] = usable_area_max
-
-  return usable_area
-
-
-def calculate_cutout_positions(
-    usable_area,
-    sizes,
-    edge_offsets,
-    tolerance,
-    is_double_tray=False,
-    force_linear_positions=False,
-    min_cutout_spacing=2.0,
-    layout_sizes=None,
-    nesting='circle',
-):
-  if len(sizes) == 0:
-    return []
-  positions = []
-  max_y_size = (max(y for _, y in layout_sizes) if layout_sizes
-                else max(sizes))
-  if max_y_size <= -usable_area['min']['y'] or not is_double_tray or force_linear_positions:
-    positions = calculate_linear_cutout_positions(
-        usable_area, sizes, edge_offsets, tolerance, is_double_tray,
-        min_spacing=min_cutout_spacing, layout_sizes=layout_sizes)
-  else:
-    positions = calculate_alternating_cutout_positions(
-        usable_area, sizes, edge_offsets, tolerance,
-        layout_sizes=layout_sizes, nesting=nesting)
-
-  return positions
 
 # %%
 
@@ -83,6 +28,7 @@ def generate_full_tray(
     edge_offsets=None,
     edge_adjusts=None,
     shapes=None,
+    placements=None,
 ):
   """Generate a tray with cutouts for the given base sizes.
 
@@ -93,21 +39,12 @@ def generate_full_tray(
   can be mixed in one tray (e.g. one oval among circles). Geometry and
   layout settings come from `config` (a TrayConfig); per-base fine-tuning
   comes from edge_offsets / edge_adjusts, which are padded with zeros to
-  match the length of `sizes`.
+  match the length of `sizes`. `placements` (a per-base list of
+  {'x', 'edge'} dicts) switches from the automatic layout to manual
+  placement — see layout_engine.compute_layout.
   """
   if config is None:
     config = TrayConfig()
-
-  shape_names = list(shapes) if shapes else []
-  while len(shape_names) < len(sizes):
-    shape_names.append(None)
-  base_shapes = [get_shape(name if name is not None else config.cutout_shape)
-                 for name in shape_names]
-  for i, (shape, size) in enumerate(zip(base_shapes, sizes)):
-    try:
-      shape.validate_size(size)
-    except ValueError as e:
-      raise ValueError(f"Base {i + 1}: {e}") from None
 
   storage_key = ((config.total_width, config.total_depth),
                  config.is_double_tray)
@@ -122,29 +59,15 @@ def generate_full_tray(
   while len(edge_adjusts) < len(sizes):
     edge_adjusts.append(0)
 
+  base_shapes, positions = compute_layout(
+      sizes, config, edge_offsets=edge_offsets, shapes=shapes,
+      placements=placements)
+
   # Create a base tray if one of the given dimmension doesn't exist
   # Grab a deep copy of the tray from storage
   if not storage_key in base_tray_storage:
     base_tray_storage[storage_key] = generate_base_tray(config)
   tray_compound = copy.deepcopy(base_tray_storage[storage_key])
-
-  usable_area = calculate_usable_area(
-      config.total_width,
-      config.total_depth,
-      config.rail_width,
-      config.safety_margin,
-      config.tolerance,
-      config.is_double_tray,
-  )
-
-  positions = calculate_cutout_positions(
-      usable_area, sizes, edge_offsets, config.tolerance,
-      config.is_double_tray,
-      force_linear_positions=config.force_linear_positions,
-      min_cutout_spacing=config.min_cutout_spacing,
-      layout_sizes=[shape.layout_sizes(size, config.tolerance)
-                    for shape, size in zip(base_shapes, sizes)],
-      nesting=[shape.nesting for shape in base_shapes])
 
   cutouts_list = []
 

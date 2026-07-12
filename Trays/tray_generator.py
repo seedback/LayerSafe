@@ -1,11 +1,13 @@
 # %% Libraries
-from build123d import *
-from ocp_vscode import *
+# Only CAD-free modules are imported at the top so that --validate-only
+# and --help never pay for (or require) the CAD stack; build123d and the
+# geometry pipeline are imported in the generation step below.
 import argparse
 import os
-from functions.full_tray_generator import generate_full_tray
 from functions.shapes import SHAPES, parse_base, format_base_summary
 from functions.tray_config import TrayConfig
+from functions.layout_engine import compute_layout
+from functions.layout_io import load_layout, build_layout, save_layout
 
 
 # %% User-Adjustable Parameters (Defaults)
@@ -21,6 +23,10 @@ sizes = [24.7, 49.6, 39.2, 49.6, 24.7, ]
 shapes = []
 edge_offsets = []
 edge_adjusts = []
+# Optional manual placement, parallel to sizes: each entry is
+# {'x': <cutout center>, 'edge': 'front'|'back'}. None uses the
+# automatic layout. Usually driven by --layout on the command line.
+placements = None
 
 
 # %% Main execution
@@ -41,14 +47,17 @@ if __name__ == "__main__":
     # Detect if running in Jupyter/IPython
     is_jupyter = 'ipykernel' in sys.argv[0] or 'jupyter' in sys.argv[0].lower()
 
-    # Check if running from command line (has sizes argument) and NOT in Jupyter
+    validate_only = False
+    export_layout_path = None
+
+    # Check if running from command line (has arguments) and NOT in Jupyter
     if len(sys.argv) > 1 and not is_jupyter:
       parser = argparse.ArgumentParser(
           description="Generate a tray with custom base cutouts\n"
           + "Usage:   \"python tray_generator.py [sizes] [options]\"\n"
           + "Example: \"python tray_generator.py 24.7 24.7 24.7 24.7 24.7 24.7\"\n"
           + "Example: \"python tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4\"\n"
-          + "Example: \"python tray_generator.py 31.6 31.6 31.6 31.6 31.6 31.6 --safety-margin-y 0.4 --tolerance 0.6\"\n",
+          + "Example: \"python tray_generator.py --layout my_tray.json\"\n",
           formatter_class=argparse.RawDescriptionHelpFormatter
       )
       def base_argument(token):
@@ -60,23 +69,45 @@ if __name__ == "__main__":
       parser.add_argument(
           "sizes",
           type=base_argument,
-          nargs="+",
+          nargs="*",
           help="Space-separated list of base sizes in mm: circle diameter, "
           "square side length, or hex across-flats (e.g., 31.6 31.6 25.4). "
           "Oval bases take WIDTHxDEPTH pairs (e.g., 60x35). Prefix a size "
           "with a shape name to mix shapes in one tray (e.g., oval:60x35 "
-          "24.7 24.7); unprefixed sizes use --cutout-shape."
+          "24.7 24.7); unprefixed sizes use --cutout-shape. Omit sizes "
+          "when using --layout."
+      )
+      parser.add_argument(
+          "--layout",
+          type=str,
+          default=None,
+          help="Layout file (JSON) with manually placed bases; replaces "
+          "the positional sizes and the automatic layout. Create a "
+          "starting point with --export-layout."
+      )
+      parser.add_argument(
+          "--export-layout",
+          type=str,
+          default=None,
+          help="Write the computed placement to this JSON file (editable, "
+          "feed it back with --layout)."
+      )
+      parser.add_argument(
+          "--validate-only",
+          action="store_true",
+          help="Check the layout (bounds, overlaps) and exit without "
+          "generating geometry; needs no CAD libraries."
       )
       parser.add_argument(
           "--width",
           type=float,
-          default=config.total_width,
+          default=None,
           help=f"Total tray width (default: {config.total_width})"
       )
       parser.add_argument(
           "--depth",
           type=float,
-          default=config.total_depth,
+          default=None,
           help=f"Total tray depth (default: {config.total_depth})"
       )
       parser.add_argument(
@@ -163,13 +194,60 @@ if __name__ == "__main__":
 
       args = parser.parse_args()
 
-      # Override config defaults with command line arguments
-      shapes = [name for name, _ in args.sizes]
-      sizes = [size for _, size in args.sizes]
-      config.total_width = args.width
-      config.total_depth = args.depth
+      validate_only = args.validate_only
+      export_layout_path = args.export_layout
       custom_output = args.output
-      config.is_double_tray = not args.single_sided
+
+      if args.layout:
+        # Manual placement from a layout file: bases, their fine-tuning,
+        # and their placements all come from the file.
+        if args.sizes:
+          parser.error("--layout replaces the positional sizes; give one "
+                       "or the other.")
+        if args.edge_offsets is not None or args.edge_adjusts is not None:
+          parser.error("--edge-offsets/--edge-adjusts belong inside the "
+                       "layout file (per-base 'edge_offset'/'edge_adjust' "
+                       "keys) when using --layout.")
+        layout = load_layout(args.layout)
+        sizes = layout['sizes']
+        shapes = layout['shapes']
+        edge_offsets = layout['edge_offsets']
+        edge_adjusts = layout['edge_adjusts']
+        placements = layout['placements']
+        # Tray settings: explicit CLI flags win over the layout file,
+        # which wins over TrayConfig defaults.
+        tray = layout['tray']
+        if 'width' in tray:
+          config.total_width = tray['width']
+        if 'depth' in tray:
+          config.total_depth = tray['depth']
+        if 'double_sided' in tray:
+          config.is_double_tray = tray['double_sided']
+        if layout['default_shape'] is not None:
+          config.cutout_shape = layout['default_shape']
+      else:
+        if not args.sizes:
+          parser.error("Give base sizes (e.g. 24.7 24.7 31.6) or a "
+                       "--layout file.")
+        shapes = [name for name, _ in args.sizes]
+        sizes = [size for _, size in args.sizes]
+
+        # Handle edge offsets - use provided values or keep default
+        if args.edge_offsets is not None:
+          edge_offsets = args.edge_offsets
+
+        # Handle edge adjusts - use provided values or keep default
+        if args.edge_adjusts is not None:
+          edge_adjusts = args.edge_adjusts
+
+      # Override config defaults (and layout-file settings) with
+      # explicit command line arguments
+      if args.width is not None:
+        config.total_width = args.width
+      if args.depth is not None:
+        config.total_depth = args.depth
+      if args.single_sided:
+        config.is_double_tray = False
       if args.cutout_shape is not None:
         config.cutout_shape = args.cutout_shape
       if args.min_cutout_spacing is not None:
@@ -188,14 +266,6 @@ if __name__ == "__main__":
       # Handle tolerance - use provided value or keep default
       if args.tolerance is not None:
         config.tolerance = args.tolerance
-
-      # Handle edge offsets - use provided values or keep default
-      if args.edge_offsets is not None:
-        edge_offsets = args.edge_offsets
-
-      # Handle edge adjusts - use provided values or keep default
-      if args.edge_adjusts is not None:
-        edge_adjusts = args.edge_adjusts
     else:
       # No arguments - use defaults
       custom_output = None
@@ -208,6 +278,33 @@ if __name__ == "__main__":
       output_filename = (
           f"tray_{format_base_summary(shapes, sizes, config.cutout_shape)}")
 
+    if validate_only or export_layout_path:
+      # Pure-math pass: resolve shapes and compute/check positions
+      # without loading the CAD stack.
+      base_shapes, positions = compute_layout(
+          sizes, config, edge_offsets=edge_offsets, shapes=shapes,
+          placements=placements)
+      if export_layout_path:
+        shape_names = [shape.name for shape in base_shapes]
+        save_layout(export_layout_path,
+                    build_layout(sizes, shape_names, positions, config,
+                                 edge_offsets=edge_offsets,
+                                 edge_adjusts=edge_adjusts))
+        print(f"Layout written: {export_layout_path}", flush=True)
+      if validate_only:
+        print(f"Layout OK: {len(positions)} base(s) fit the tray.",
+              flush=True)
+        for pos in sorted(positions, key=lambda p: p['index']):
+          edge = 'back' if pos['flipped'] else 'front'
+          print(f"  Base {pos['index'] + 1}: x={pos['x']:.2f} "
+                f"y={pos['y']:.2f} ({edge})", flush=True)
+        sys.exit(0)
+
+    # Generation needs the CAD stack; imported here so the steps above
+    # stay CAD-free.
+    from build123d import export_stl, export_step
+    from functions.full_tray_generator import generate_full_tray
+
     print("Generating", output_filename, flush=True)
     sys.stdout.flush()
 
@@ -217,11 +314,13 @@ if __name__ == "__main__":
         edge_offsets=edge_offsets,
         edge_adjusts=edge_adjusts,
         shapes=shapes,
+        placements=placements,
     )
     print("Tray generated successfully", flush=True)
     sys.stdout.flush()
 
     try:
+      from ocp_vscode import show
       show(tray_compound)
     except Exception:
       pass

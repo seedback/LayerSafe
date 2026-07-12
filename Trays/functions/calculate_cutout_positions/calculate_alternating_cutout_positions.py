@@ -1,9 +1,16 @@
 # %%
 import math
 
-# Validation constants
-EDGE_TOLERANCE = 0.1  # Allowed boundary overshoot for floating-point precision
-MIN_EDGE_GAP = 0.4    # Minimum gap (mm) between the edges of adjacent cutouts
+try:
+  from .validate_positions import (
+      validate_positions,
+      pair_nests_as_circles as _pair_nests_as_circles,
+  )
+except ImportError:
+  from validate_positions import (
+      validate_positions,
+      pair_nests_as_circles as _pair_nests_as_circles,
+  )
 
 
 def calculate_alternating_cutout_positions(
@@ -47,20 +54,14 @@ def calculate_alternating_cutout_positions(
     positions = _calculate_initial_positions(
         usable_area, sizes, edge_offsets, tolerance, layout_sizes, nesting)
 
-  _validate_positions(usable_area, positions, tolerance, layout_sizes,
-                      nesting)
+  validate_positions(usable_area, positions, tolerance, layout_sizes,
+                     nesting)
 
   return positions
 
 
 def _offset(edge_offsets, i):
   return edge_offsets[i] if i < len(edge_offsets) else 0
-
-
-def _format_size(size):
-  if isinstance(size, (tuple, list)):
-    return f"{size[0]}x{size[1]}"
-  return str(size)
 
 
 def _box_min_dx(fx_a, fy_a, fx_b, fy_b, dy, tolerance, gap):
@@ -71,12 +72,6 @@ def _box_min_dx(fx_a, fy_a, fx_b, fy_b, dy, tolerance, gap):
   if y_clearance >= gap:
     return 0.0
   return (fx_a + tolerance) / 2 + (fx_b + tolerance) / 2 + gap
-
-
-def _pair_nests_as_circles(nesting, i, j):
-  """Exact circle tangency only applies between two circular footprints;
-  any pair involving a box-nested shape falls back to bounding boxes."""
-  return nesting[i] == 'circle' and nesting[j] == 'circle'
 
 
 def _calculate_initial_positions(
@@ -135,55 +130,6 @@ def _calculate_initial_positions(
       break
 
   return positions
-
-
-def _validate_positions(usable_area, positions, tolerance, layout_sizes,
-                        nesting):
-  # Boundary check. Raw sizes are used on purpose: the usable area
-  # already reserves tolerance/2 along y, and the x safety margin absorbs
-  # the tolerance overhang, matching the linear layout's convention.
-  for pos, (fx, fy) in zip(positions, layout_sizes):
-    left_edge = pos['x'] - fx / 2
-    right_edge = pos['x'] + fx / 2
-    top_edge = pos['y'] + fy / 2
-    bottom_edge = pos['y'] - fy / 2
-
-    if (left_edge < usable_area['min']['x'] - EDGE_TOLERANCE or
-        right_edge > usable_area['max']['x'] + EDGE_TOLERANCE or
-        top_edge > usable_area['max']['y'] + EDGE_TOLERANCE or
-            bottom_edge < usable_area['min']['y'] - EDGE_TOLERANCE):
-      raise ValueError(
-          f"A base of size {_format_size(pos['size'])}mm does not fit "
-          "within the tray's usable area.\n"
-          "Use a larger tray, remove a base from the list, or reduce "
-          "the safety margins."
-      )
-
-  # Overlap check between every pair of cutouts (not just consecutive ones),
-  # using the full (toleranced) hole sizes.
-  for i in range(len(positions)):
-    for j in range(i + 1, len(positions)):
-      dx = positions[j]['x'] - positions[i]['x']
-      dy = positions[j]['y'] - positions[i]['y']
-      if _pair_nests_as_circles(nesting, i, j):
-        center_distance = math.sqrt(dx*dx + dy*dy)
-        edge_distance = (
-            center_distance -
-            (layout_sizes[i][0] + tolerance) / 2 -
-            (layout_sizes[j][0] + tolerance) / 2
-        )
-      else:
-        # Bounding boxes are separated if they clear on EITHER axis.
-        x_gap = (abs(dx) - (layout_sizes[i][0] + tolerance) / 2
-                 - (layout_sizes[j][0] + tolerance) / 2)
-        y_gap = (abs(dy) - (layout_sizes[i][1] + tolerance) / 2
-                 - (layout_sizes[j][1] + tolerance) / 2)
-        edge_distance = max(x_gap, y_gap)
-      if edge_distance < MIN_EDGE_GAP:
-        raise ValueError(
-            "Total width of bases is too wide to fit on the tray.\n"
-            + "Remove a base from the list and try again."
-        )
 
 
 def _redistribution_pass(

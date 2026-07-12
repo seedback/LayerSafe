@@ -14,6 +14,7 @@ LayerSafe generates parametric 3D tray designs featuring:
 - Adjustable cutout wall angle (taper) to match sloped base edges
 - Flap clearance so closed flaps rotate past seated bases
 - Support for single or double tray configurations
+- Manual base placement via editable layout files (see [Manual base placement](#manual-base-placement-layout-files))
 - Export capabilities in STEP and STL formats
 
 ## Requirements
@@ -113,6 +114,9 @@ python Trays/tray_generator.py oval:60x35 24.7 24.7 24.7 24.7 --force-linear-pos
 | `--edge-adjusts` | space-separated floats | None | Edge adjustments for each base (e.g., `0.2 0.2 0.2`), independent of edge-offsets for additional fine-tuning, a larger value will give a larger flat-spot below the curved section (mm) |
 | `--single-sided` | flag | False | Generate a single-sided tray (default: double-sided) |
 | `--force-linear-positions` | flag | False | Forces straight-row positioning (default: bases too deep to stack are automatically nested against alternating edges — exact tangency for circles, conservative bounding-box spacing for square/hex/oval) |
+| `--layout` | string | None | Layout file (JSON) with manually placed bases; replaces the positional sizes and the automatic layout. See [Manual base placement](#manual-base-placement-layout-files) |
+| `--export-layout` | string | None | Write the computed placement to this JSON file (editable, feed it back with `--layout`) |
+| `--validate-only` | flag | False | Check the layout (bounds, overlaps) and exit without generating geometry; needs no CAD libraries |
 | `--output` | string | auto | Output filename (without extension) |
 
 #### Matching sloped bases
@@ -165,6 +169,68 @@ Specify a custom output filename:
 python Trays/tray_generator.py 31.6 31.6 31.6 --output my_custom_tray
 ```
 
+#### Manual base placement (layout files)
+
+By default the generator decides where each base goes. With a **layout
+file** you place them yourself: each base gets an explicit position
+along the tray and a choice of which edge it rests on. The easiest way
+to start is to let the generator lay the tray out once and export the
+result:
+
+```bash
+# 1. Compute the automatic layout and save it (no geometry generated)
+python Trays/tray_generator.py 24.7 24.7 31.6 --validate-only --export-layout my_tray.json
+
+# 2. Edit my_tray.json - move bases, swap edges, add or remove bases
+
+# 3. Check the edited layout (instant, no CAD needed)
+python Trays/tray_generator.py --layout my_tray.json --validate-only
+
+# 4. Generate the tray from it
+python Trays/tray_generator.py --layout my_tray.json
+```
+
+A layout file looks like this:
+
+```json
+{
+  "version": 1,
+  "tray": { "width": 189.5, "depth": 66.0, "double_sided": true },
+  "defaults": { "shape": "circle" },
+  "bases": [
+    { "size": 24.7, "x": -32.1, "edge": "front" },
+    { "shape": "oval", "size": [60, 35], "x": 30.0, "edge": "back", "edge_offset": 0.5 }
+  ]
+}
+```
+
+- **Coordinates** are tray-centered millimeters: `x: 0` is the middle of
+  the tray, positive to the right. `x` is the center of the cutout.
+- **`edge`** is `front` or `back` (default `front`): which tray edge the
+  base rests against. Every base sits against an edge — that is what the
+  flap-retention geometry requires — so there is no `y` coordinate;
+  free placement toward the middle of the tray is a planned follow-up
+  (see [docs/feature-manual-placement.md](docs/feature-manual-placement.md)).
+- **`size`** follows the CLI conventions: a number for circle/square/hex,
+  a `[width, depth]` pair (or `"60x35"` string) for ovals. `shape`
+  defaults to `defaults.shape` (circle if omitted).
+- **`edge_offset`** / **`edge_adjust`** are the same per-base fine-tuning
+  values as `--edge-offsets`/`--edge-adjusts`, attached to the base they
+  belong to.
+- Explicit CLI flags (`--width`, `--tolerance`, ...) override the file's
+  `tray` settings.
+
+Your positions are authoritative — the generator never repacks them. It
+only validates: every base inside the usable area, no two cutouts
+overlapping (opposing front/back bases may sit as close as the automatic
+layout puts them). Validation errors name the offending base:
+
+```
+Error: Base 1 (24.7mm at x=-32.1) overlaps Base 2 (24.7mm at x=-25): their holes
+need at least 0.4mm between edges but have -18.13mm.
+Move the bases further apart.
+```
+
 #### Getting Help
 
 View all available options:
@@ -203,6 +269,79 @@ config = TrayConfig(
 ### Adding a new cutout shape
 
 Shapes are pluggable: subclass `CutoutShape` in `Trays/functions/shapes.py`, implement `build()` (the 3D negative) and `circumradius()`, override `footprint()`/`layout_sizes()` if the shape's bounding box is not size × size, and register an instance in `SHAPES`. The CLI choices, layout, and orchestrator pick it up automatically.
+
+## Building a UI on top (implementation notes)
+
+Manual placement was designed as the backend for a drag-and-drop tray
+editor. Notes for anyone building that UI:
+
+**Interchange format.** The layout JSON (above) is the contract in both
+directions: `--export-layout` gives the UI a valid starting arrangement
+from any size list, and `--layout` turns an edited arrangement into a
+tray. Round-tripping an unedited export reproduces the tray
+byte-identically — `x` is written at full float precision on purpose, so
+don't round it when re-serializing. Parsing/writing lives in
+[Trays/functions/layout_io.py](Trays/functions/layout_io.py)
+(`load_layout`, `parse_layout`, `build_layout`, `save_layout`).
+
+**Interaction model.** In Phase 1 every base rests against the front or
+back edge, so the canvas is two horizontal rails: horizontal drags
+change `x`, a vertical drag flips `edge`. Every arrangement expressible
+this way stays inside the geometry the cutout builders support (the
+edge-resting assumption is what makes the flap retention and slide-path
+geometry valid — see
+[docs/feature-manual-placement.md](docs/feature-manual-placement.md)
+for why, and for the Phase 2 plan that will add free `y`).
+
+**Validating without the CAD stack.** Everything needed to check a
+placement is pure math and importable without build123d (the CAD import
+costs seconds; the math is instant — fine to run on every drag):
+
+```python
+import sys; sys.path.insert(0, "<repo>/Trays")
+from functions.layout_io import parse_layout
+from functions.layout_engine import compute_layout
+from functions.tray_config import TrayConfig
+
+layout = parse_layout(layout_dict)          # schema errors name the base
+config = TrayConfig(**tray_overrides)
+base_shapes, positions = compute_layout(    # ValueError names the base
+    layout['sizes'], config,
+    edge_offsets=layout['edge_offsets'],
+    shapes=layout['shapes'],
+    placements=layout['placements'])
+```
+
+`compute_layout` returns the final positions (`x`, `y`, `flipped`,
+`index`) — the same values generation will use, so the UI can render the
+true resting `y` without duplicating any formula. Omit `placements` to
+get the automatic layout (that is all `--export-layout` does). If you'd
+rather shell out than import, `--validate-only` is the same check as a
+subprocess: exit 0 with a position listing, exit 1 with the naming error
+on stdout. It runs on a bare Python without the CAD libraries installed.
+
+**Rendering the canvas.** From the CAD-free modules:
+- Placeable area: `layout_engine.calculate_usable_area(...)` — the
+  rectangle base *footprints* must stay inside.
+- Base outline: `shape.footprint(size, config.tolerance)` from
+  `functions/shapes.py` gives each base's (x, y) bounding extent — the
+  physical hole, the thing to draw and hit-test. A hex is ~1.155× wider
+  than its across-flats size; draw footprints, not sizes.
+- Spacing rules for live snapping: same-edge neighbors need 0.4 mm
+  between hole edges (`MIN_EDGE_GAP` in
+  `calculate_cutout_positions/validate_positions.py`); circle pairs
+  measure edge distance by tangency, any pair involving a
+  square/hex/oval by bounding boxes (`CutoutShape.nesting` says which).
+  Opposing front/back bases are allowed to meet in the middle whenever
+  the tray is nominally deep enough for both — don't hard-code a
+  cross-row gap.
+
+**Generation.** Shell out to
+`python Trays/tray_generator.py --layout file.json [--output name]` (the
+CAD stack makes in-process generation heavyweight); STL/STEP land in
+`Trays/output/`. Layout and schema failures are `ValueError`s printed as
+`Error: ...` with exit 1, and always name the base, so surfacing stderr
+verbatim gives usable UI messages.
 
 ## Development
 
