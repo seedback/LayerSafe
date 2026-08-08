@@ -32,6 +32,12 @@ bld/
 [Ll]og/
 [Ll]ogs/
 
+# Mac file system stuff
+.DS_Store
+
+# Project Output Files
+output/*
+
 # Visual Studio 2015/2017 cache/options directory
 .vs/
 # Uncomment if you have tasks that create the project's static files in wwwroot
@@ -330,6 +336,10 @@ paket-files/
 __pycache__/
 *.pyc
 
+# Python virtual environment
+venv/
+path/
+
 # Cake - Uncomment if you are using it
 # tools/**
 # !tools/packages.config
@@ -402,3 +412,5 @@ FodyWeavers.xsd
 
 # output
 **/output/**
+# Pytest
+.pytest_cache/

@@ -1,116 +1,149 @@
 # %%
 import math
 
+try:
+  from .validate_positions import (
+      validate_positions,
+      pair_nests_as_circles as _pair_nests_as_circles,
+  )
+except ImportError:
+  from validate_positions import (
+      validate_positions,
+      pair_nests_as_circles as _pair_nests_as_circles,
+  )
+
 
 def calculate_alternating_cutout_positions(
     usable_area,
-    diameters,
+    sizes,
     edge_offsets,
-    tolerance
+    tolerance,
+    layout_sizes=None,
+    nesting='circle',
 ):
-  full_diameters = []
-  for diameter in diameters:
-    full_diameters.append(diameter + tolerance)
+  """Nest bases alternately against the front and back edges.
 
-  if len(diameters) == 1:
-    return [{
+  `layout_sizes` is an optional per-base (x_size, y_size) list (see the
+  linear layout); defaults to (size, size). `nesting` selects the spacing
+  math, either one string for every base or a per-base list: 'circle' is
+  exact tangency for circular footprints; 'box' is conservative
+  bounding-box separation, safe for any shape (squares, hexes, ovals) --
+  a pair resting on opposite edges is spaced apart in x unless the tray
+  is deep enough for them to clear vertically. A mixed pair uses circle
+  tangency only when both bases are 'circle'.
+  """
+  if len(sizes) == 0:
+    return []
+
+  if layout_sizes is None:
+    layout_sizes = [(size, size) for size in sizes]
+
+  if isinstance(nesting, str):
+    nesting = [nesting] * len(sizes)
+
+  if len(sizes) == 1:
+    positions = [{
         'x': 0,
-        'diameter': diameters[0],
-        'y': usable_area['min']['y'] + diameter/2 - edge_offsets[0],
+        'y': usable_area['min']['y'] + layout_sizes[0][1] / 2
+        + _offset(edge_offsets, 0),
+        'size': sizes[0],
+        'index': 0,
         'flipped': False,
     }]
+  else:
+    positions = _calculate_initial_positions(
+        usable_area, sizes, edge_offsets, tolerance, layout_sizes, nesting)
 
-  positions = _calculate_initial_positions(usable_area, diameters, edge_offsets, tolerance)
+  validate_positions(usable_area, positions, tolerance, layout_sizes,
+                     nesting)
 
   return positions
 
 
+def _offset(edge_offsets, i):
+  return edge_offsets[i] if i < len(edge_offsets) else 0
+
+
+def _box_min_dx(fx_a, fy_a, fx_b, fy_b, dy, tolerance, gap):
+  """Minimum x distance between two bounding-box bases whose centers are
+  `dy` apart in y, keeping `gap` between the physical (toleranced) holes.
+  Zero when the tray is deep enough for the pair to clear vertically."""
+  y_clearance = dy - (fy_a + tolerance) / 2 - (fy_b + tolerance) / 2
+  if y_clearance >= gap:
+    return 0.0
+  return (fx_a + tolerance) / 2 + (fx_b + tolerance) / 2 + gap
+
+
 def _calculate_initial_positions(
     usable_area,
-    diameters,
+    sizes,
     edge_offsets,
-    tolerance
+    tolerance,
+    layout_sizes,
+    nesting,
 ):
   positions = []
   usable_area_total = {
       'x': -usable_area['min']['x'] + usable_area['max']['x'],
       'y': -usable_area['min']['y'] + usable_area['max']['y']}
-  for i, diameter in enumerate(diameters):
+  for i, size in enumerate(sizes):
+    fx, fy = layout_sizes[i]
     if i == 0:
       positions.append({
-          'x': usable_area['min']['x'] + diameter/2,
-          'y': usable_area['min']['y'] + diameter/2 - edge_offsets[i],
-          'diameter': diameters[0],
+          'x': usable_area['min']['x'] + fx/2,
+          'y': usable_area['min']['y'] + fy/2 + _offset(edge_offsets, i),
+          'size': size,
+          'index': i,
           'flipped': False,
       })
     else:
       last_pos = positions[-1]
-      offset = _side_from_hyp(
-          last_pos['diameter'] / 2 + diameter / 2, usable_area_total['y'] -
-          last_pos['diameter'] / 2 - diameter / 2)
+      last_fx, last_fy = layout_sizes[i - 1]
+      # Distance in y between the two resting centers.
+      dy = usable_area_total['y'] - last_fy / 2 - fy / 2
+      if _pair_nests_as_circles(nesting, i - 1, i):
+        # Nest against the previous cutout using the full (toleranced)
+        # hole sizes so the physical holes keep their clearance.
+        hyp = (last_fx + tolerance) / 2 + (fx + tolerance) / 2
+        offset = _side_from_hyp(hyp, dy)
+      else:
+        offset = _box_min_dx(last_fx, last_fy, fx, fy, dy, tolerance, 0.0)
       is_flipped = not last_pos['flipped']
+      # Edge offsets move the cutout inward, away from its resting edge
+      # (same convention as the linear layout).
+      if is_flipped:
+        y = usable_area['max']['y'] - fy/2 - _offset(edge_offsets, i)
+      else:
+        y = usable_area['min']['y'] + fy/2 + _offset(edge_offsets, i)
       positions.append({
           'x': last_pos['x'] + offset,
-          'y': (usable_area['max']['y'] - diameter/2 + edge_offsets[i]) if is_flipped else (usable_area['min']['y'] + diameter/2 + edge_offsets[i]),
-          'diameter': diameter,
+          'y': y,
+          'size': size,
+          'index': i,
           'flipped': is_flipped,
       })
 
   for i in range(100):
-    positions, error = _redistribution_pass(usable_area, positions)
+    positions, error = _redistribution_pass(
+        usable_area, positions, tolerance, layout_sizes, nesting)
     if error < 0.01:
       break
-
-# Validate: check for overlaps and boundary violations
-  edge_tolerance = 0.1  # Allow 0.1mm tolerance for floating-point precision
-  gap_tolerance = 0.4   # Minimum 0.4mm gap between circles
-  has_error = False
-
-  for i, pos in enumerate(positions):
-    # Check boundaries (allow small tolerance for floating-point precision)
-    left_edge = pos['x'] - pos['diameter'] / 2
-    right_edge = pos['x'] + pos['diameter'] / 2
-    top_edge = pos['y'] + pos['diameter'] / 2
-    bottom_edge = pos['y'] - pos['diameter'] / 2
-
-    if (left_edge < usable_area['min']['x'] - edge_tolerance or
-        right_edge > usable_area['max']['x'] + edge_tolerance or
-        top_edge > usable_area['max']['y'] + edge_tolerance or
-            bottom_edge < usable_area['min']['y'] - edge_tolerance):
-      break
-
-  # Check for overlaps (minimum 0.4mm gap required)
-  distances = []
-  for i in range(len(positions) - 1):
-    dx = positions[i+1]['x'] - positions[i]['x']
-    dy = positions[i+1]['y'] - positions[i]['y']
-    center_distance = math.sqrt(dx*dx + dy*dy)
-    # Edge-to-edge distance = center distance - radius1 - radius2
-    edge_distance = center_distance - \
-        positions[i]['diameter']/2 - positions[i+1]['diameter']/2
-    distances.append(edge_distance)
-
-    if edge_distance < gap_tolerance:
-      has_error = True
-
-  if has_error:
-    raise ValueError(
-        "Total width of bases is too wide to fit on the tray.\n"
-        + "Remove a diameter from the list and try again."
-    )
 
   return positions
 
 
 def _redistribution_pass(
         usable_area,
-        positions):
+        positions,
+        tolerance,
+        layout_sizes,
+        nesting):
   if len(positions) <= 1:
     return positions, 0
 
   # Fixed boundaries
-  target_first_x = usable_area['min']['x'] + positions[0]['diameter'] / 2
-  target_last_x = usable_area['max']['x'] - positions[-1]['diameter'] / 2
+  target_first_x = usable_area['min']['x'] + layout_sizes[0][0] / 2
+  target_last_x = usable_area['max']['x'] - layout_sizes[-1][0] / 2
   target_x_span = target_last_x - target_first_x
 
   # Vertical distances (fixed by alternating pattern)
@@ -122,21 +155,33 @@ def _redistribution_pass(
   if len(dy_list) == 0:
     return positions, 0
 
-  # Find uniform edge-to-edge gap such that all gaps are equal
-  # For each segment i: edge_gap = h_i - radius_i - radius_{i+1}
-  # Therefore: h_i = edge_gap + radius_i + radius_{i+1}
+  # Find uniform edge-to-edge gap such that all gaps are equal.
+  # Circle nesting: for each segment i,
+  #   h_i = edge_gap + full_radius_i + full_radius_{i+1}; dx = sqrt(h^2-dy^2)
+  # Box nesting: dx is zero when the pair clears vertically by the gap,
+  # otherwise the full half-widths plus the gap.
+  # Full sizes include the fit tolerance, since that is the size of the
+  # physical hole cut into the tray.
+
+  def calculate_dx(i, dy, gap):
+    fx_a, fy_a = layout_sizes[i]
+    fx_b, fy_b = layout_sizes[i + 1]
+    if _pair_nests_as_circles(nesting, i, i + 1):
+      radius_a = (fx_a + tolerance) / 2
+      radius_b = (fx_b + tolerance) / 2
+      h = gap + radius_a + radius_b  # Hypotenuse needed for this gap
+      if h * h < dy * dy:
+        return None  # Invalid: hypotenuse must be >= vertical distance
+      return math.sqrt(h * h - dy * dy)
+    return _box_min_dx(fx_a, fy_a, fx_b, fy_b, dy, tolerance, gap)
 
   def calculate_x_span(gap):
     """Calculate total x span for a given edge-to-edge gap"""
     total_dx = 0
     for i, dy in enumerate(dy_list):
-      radius_i = positions[i]['diameter'] / 2
-      radius_next = positions[i+1]['diameter'] / 2
-      h = gap + radius_i + radius_next  # Hypotenuse needed for this gap
-
-      if h * h < dy * dy:
-        return None  # Invalid: hypotenuse must be >= vertical distance
-      dx = math.sqrt(h * h - dy * dy)
+      dx = calculate_dx(i, dy, gap)
+      if dx is None:
+        return None
       total_dx += dx
     return total_dx
 
@@ -158,10 +203,11 @@ def _redistribution_pass(
   # Calculate dx values with best_gap
   dx_list = []
   for i, dy in enumerate(dy_list):
-    radius_i = positions[i]['diameter'] / 2
-    radius_next = positions[i+1]['diameter'] / 2
-    h = best_gap + radius_i + radius_next
-    dx = math.sqrt(h * h - dy * dy)
+    dx = calculate_dx(i, dy, best_gap)
+    if dx is None:
+      # best_gap sits marginally inside the infeasible region; fall back
+      # to the known-feasible upper bound of the search.
+      dx = calculate_dx(i, dy, high_gap)
     dx_list.append(dx)
 
   # Position elements based on calculated dx values
@@ -200,6 +246,6 @@ def _side_from_hyp(
 if __name__ == "__main__":
   print(calculate_alternating_cutout_positions(
       {'min': {'x': -82.9, 'y': -31.65}, 'max': {'x': 82.9, 'y': 31.65}},
-      [40, 40]))
+      [40, 40], [0, 0], 0.55))
 
 # %%
