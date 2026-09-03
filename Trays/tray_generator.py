@@ -1,10 +1,14 @@
 # %% Libraries
+import os
+
+# Ensure OCP_PORT is defined so ocp_vscode doesn't crash trying to cast a None port when no viewer is open
+os.environ.setdefault("OCP_PORT", "0000")
+
 from build123d import *
 from ocp_vscode import *
 import math
 import copy
 import argparse
-import os
 from collections import Counter
 from functions.full_tray_generator import generate_full_tray
 
